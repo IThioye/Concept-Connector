@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="layout">
+  <!-- Left column: input -->
+  <aside class="sidebar">
+    <div class="input-card">
+      <h2>Select Concepts</h2>
+      <p class="subtitle">Enter two concepts to discover how they connect.</p>
+      
+      <form id="query-form">
+        <label>First Concept
+          <input name="concept_a" placeholder="e.g., Photosynthesis" required>
+        </label>
+
+        <div class="link-divider">LINK</div>
+
+        <label>Second Concept
+          <input name="concept_b" placeholder="e.g., Supply and Demand" required>
+        </label>
+
+        <div class="profile-section">
+          <div class="profile-header">
+            <h3>Student Profile</h3>
+            <button type="button" class="collapse-btn" id="profile-toggle">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+          <p class="profile-subtitle">Personalize the explanation.</p>
+          
+          <div id="profile-content" class="profile-content">
+            <label>Knowledge Level
+              <select name="knowledge_level">
+                <option>beginner</option>
+                <option selected>intermediate</option>
+                <option>advanced</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <button type="submit" class="primary-btn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M13 2L3 14h8l-1 8 10-12h-8l1-8z"/>
+          </svg>
+          Find Connections
+        </button>
+      </form>
+
+      <div class="action-buttons">
+        <button type="button" id="random-btn" class="secondary-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+          </svg>
+          Random Example
+        </button>
+        <button type="button" id="clear-btn" class="secondary-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          </svg>
+          Clear All
+        </button>
+      </div>
+    </div>
+
+    <div id="session-history">
+      <h3>History</h3>
+      <ul id="history-list"></ul>
+    </div>
+  </aside>
+
+  <!-- Right column: results -->
+  <section class="results-area">
+    <div id="progress" class="hidden">
+      <div class="progress-spinner"></div>
+      Loading...
+    </div>
+
+    <div id="connection-graph"></div>
+
+    <div id="results">
+      <div class="empty-state-main">
+        <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M13 2L3 14h8l-1 8 10-12h-8l1-8z"/>
+        </svg>
+        <h2>AI-Generated Explanations</h2>
+        <p>Your insights will appear here once you find connections.</p>
+      </div>
+
+      <div class="explanation-section hidden">
+        <h2>Explanations</h2>
+        <div id="explanations"></div>
+      </div>
+
+      <div class="analogy-section hidden">
+        <h2>Analogies</h2>
+        <div id="analogies"></div>
+      </div>
+
+      <div class="bias-review hidden">
+        <h2>Bias Monitor</h2>
+        <pre id="bias-output"></pre>
+      </div>
+    </div>
+  </section>
+</div>
+
+{% endblock %}
