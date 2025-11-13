@@ -29,13 +29,9 @@ class Orchestrator:
         ctx = self.prepare_context(concept_a, concept_b, level, session_id)
         connections = self.connection_finder.find(concept_a, concept_b, level, ctx)
 
+        explanations = self.explainer.build(connections, level)
 
-        explanations = []
-        for conn in connections:
-            explanations.append(self.explainer.build(conn, level))
-
-
-        analogies = self.analogies.generate(connections[0] if connections else None, level)
+        analogies = self.analogies.generate(connections if connections else None, level)
 
 
         review = self.bias.review({
@@ -49,7 +45,7 @@ class Orchestrator:
         "connections": connections,
         "explanations": explanations,
         "analogies": analogies,
-        "review": review,
+        "review": review["raw"],
         }
         self.memory.save_interaction(session_id, concept_a, concept_b, result)
         return result
