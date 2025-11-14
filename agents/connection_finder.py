@@ -3,8 +3,8 @@ from prompts.templates import CONNECTION_FINDER_SYSTEM, CONNECTION_FINDER_USER
 import json
 from .logging_config import logger
 
-import json
 import re
+
 
 def extract_json(text):
     """Extract the first JSON object from any LLM output using brace counting."""
@@ -43,9 +43,8 @@ def extract_json(text):
     return None
 
 
-
 class ConnectionFinder:
-    def find(self, concept_a, concept_b, level, ctx):
+    async def find(self, concept_a, concept_b, level, ctx):
         sys = CONNECTION_FINDER_SYSTEM.format(level=level)
         usr = CONNECTION_FINDER_USER.format(
             concept_a=concept_a,
@@ -54,7 +53,7 @@ class ConnectionFinder:
             history=ctx.get('history', [])
         )
 
-        raw_text = ollama.generate(prompt=usr, system_prompt=sys, temperature=0.5)
+        raw_text = await ollama.agenerate(prompt=usr, system_prompt=sys, temperature=0.5)
 
         # Step 1: Parse the outer Ollama response
         try:
@@ -82,4 +81,3 @@ class ConnectionFinder:
 
         # Step 3: Return connections
         return parsed.get("connections", parsed)
-
