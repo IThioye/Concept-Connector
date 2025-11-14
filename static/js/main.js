@@ -177,11 +177,27 @@ function renderResults(data){
 
     // Analogies
     const analogiesEl = qs('#analogies');
-    analogiesEl.innerHTML = data.analogies || '<p style="color:#999;">No analogies available.</p>';
+    if (Array.isArray(data.analogies)) {
+        if (data.analogies.length) {
+            analogiesEl.innerHTML = `<ul>${data.analogies.map(item => `<li>${item}</li>`).join('')}</ul>`;
+        } else {
+            analogiesEl.innerHTML = '<p style="color:#999;">No analogies available.</p>';
+        }
+    } else {
+        analogiesEl.innerHTML = data.analogies || '<p style="color:#999;">No analogies available.</p>';
+    }
 
     // Bias review
     const biasEl = qs('#bias-output');
-    biasEl.innerHTML = data.review || '<p>No bias review available.</p>';
+    if (Array.isArray(data.review)) {
+        if (data.review.length) {
+            biasEl.innerHTML = `<ul>${data.review.map(item => `<li>${item}</li>`).join('')}</ul>`;
+        } else {
+            biasEl.innerHTML = '<p>No bias review available.</p>';
+        }
+    } else {
+        biasEl.innerHTML = data.review || '<p>No bias review available.</p>';
+    }
 }
 
 
