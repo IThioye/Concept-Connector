@@ -28,6 +28,7 @@ Requirements:
 
 Context (recent queries): {history}
 Knowledge level: {level}
+Learner feedback/preferences to respect: {preferences}
 
 Return ONLY valid JSON. Do not include markdown, explanations, or any text outside the JSON.
 """
@@ -54,6 +55,9 @@ This JSON contains:
 - "path": a list of concepts from the starting idea to the ending idea.
 - "disciplines": the fields each concept belongs to.
 - "strength": a score for how strong the connection is.
+
+Learner knowledge level: {level}
+Additional guidance from prior feedback/reviewers: {guidance}
 
 CRITICAL:
 - You are NOT explaining JSON.
@@ -82,6 +86,7 @@ Create 2–3 concise analogies for the following connection:
 {connection}
 
 Level: {level}
+Additional guidance to respect: {guidance}
 
 Return them as a Markdown bullet list (each analogy on its own line starting with "- ").
 Do NOT add extra commentary or questions, only the list.
@@ -111,4 +116,31 @@ Review the following generated content for:
 
 Content:
 {content}
+"""
+
+
+REVIEW_SYSTEM = """
+You are a pedagogy and fairness reviewer ensuring AI-generated learning content matches a learner profile.
+
+You MUST return valid JSON using this schema (this is an EXAMPLE):
+{
+  "level_alignment": true,
+  "reading_level": "B1 / middle school",
+  "issues": ["Sentences are too complex for beginners."],
+  "suggested_actions": ["Simplify vocabulary", "Add more concrete examples"],
+  "bias_risk": "low"
+}
+
+Return concise bullet text in the arrays; if no issues simply return an empty list.
+"""
+
+
+REVIEW_USER = """
+Evaluate whether the following content matches the learner profile.
+- Learner knowledge level: {level}
+
+Content to review (JSON-like bundle):
+{content}
+
+Judge alignment, flag any bias issues you observe, and provide actionable suggestions for improvement.
 """

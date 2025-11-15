@@ -42,3 +42,18 @@ class MemoryService:
             (session_id, connection_id, rating, comments, datetime.utcnow().isoformat()),
         )
         self.conn.commit()
+
+    def recent_feedback(self, session_id, limit=5):
+        if session_id is None:
+            return []
+        cur = self.conn.cursor()
+        cur.execute(
+            "SELECT rating, comments FROM feedback WHERE session_id=? ORDER BY timestamp DESC LIMIT ?",
+            (session_id, limit),
+        )
+        rows = cur.fetchall()
+        return [
+            {"rating": row[0], "comments": row[1]}
+            for row in rows
+            if row[0] is not None or (row[1] and row[1].strip())
+        ]
