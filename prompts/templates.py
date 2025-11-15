@@ -27,7 +27,13 @@ Requirements:
   (e.g. "biology", "physics", "philosophy", "economics", "art").
 
 Context (recent queries): {history}
-Knowledge level: {level}
+Learner knowledge level: {level}
+Learner profile:
+- Education level: {education_level}
+- Education system: {education_system}
+- Prior knowledge of "{concept_a}": {concept_a_knowledge}/5
+- Prior knowledge of "{concept_b}": {concept_b_knowledge}/5
+Learner feedback/preferences to respect: {preferences}
 
 Return ONLY valid JSON. Do not include markdown, explanations, or any text outside the JSON.
 """
@@ -55,6 +61,13 @@ This JSON contains:
 - "disciplines": the fields each concept belongs to.
 - "strength": a score for how strong the connection is.
 
+Learner profile:
+- Knowledge level: {level}
+- Education level: {education_level}
+- Education system: {education_system}
+- Prior knowledge ratings — "{concept_a}": {concept_a_knowledge}/5, "{concept_b}": {concept_b_knowledge}/5
+Additional guidance from prior feedback/reviewers: {guidance}
+
 CRITICAL:
 - You are NOT explaining JSON.
 - You MUST explain the concepts in the path, step by step.
@@ -64,7 +77,7 @@ Instructions:
 1. Start with a short overview (2-3 sentences) of how the two main concepts are related.
 2. Then explain each step in the path in 1-2 sentences each (use bullet points or numbers).
 3. Use bold for key ideas.
-4. Include at least one real-life example.
+4. Include at least one real-life example tailored to the learner's educational context.
 5. Do NOT output any JSON. Only Markdown-like text.
 """
 
@@ -81,7 +94,12 @@ Create 2–3 concise analogies for the following connection:
 
 {connection}
 
-Level: {level}
+Learner profile:
+- Knowledge level: {level}
+- Education level: {education_level}
+- Education system: {education_system}
+- Prior knowledge ratings — "{concept_a}": {concept_a_knowledge}/5, "{concept_b}": {concept_b_knowledge}/5
+Additional guidance to respect: {guidance}
 
 Return them as a Markdown bullet list (each analogy on its own line starting with "- ").
 Do NOT add extra commentary or questions, only the list.
@@ -111,4 +129,34 @@ Review the following generated content for:
 
 Content:
 {content}
+"""
+
+
+REVIEW_SYSTEM = """
+You are a pedagogy and fairness reviewer ensuring AI-generated learning content matches a learner profile.
+
+You MUST return valid JSON using this schema (this is an EXAMPLE):
+{
+  "level_alignment": true,
+  "reading_level": "B1 / middle school",
+  "issues": ["Sentences are too complex for beginners."],
+  "suggested_actions": ["Simplify vocabulary", "Add more concrete examples"],
+  "bias_risk": "low"
+}
+
+Return concise bullet text in the arrays; if no issues simply return an empty list.
+"""
+
+
+REVIEW_USER = """
+Evaluate whether the following content matches the learner profile.
+- Learner knowledge level: {level}
+- Education level: {education_level}
+- Education system: {education_system}
+- Prior knowledge ratings — "{concept_a}": {concept_a_knowledge}/5, "{concept_b}": {concept_b_knowledge}/5
+
+Content to review (JSON-like bundle):
+{content}
+
+Judge alignment, flag any bias issues you observe, and provide actionable suggestions for improvement.
 """

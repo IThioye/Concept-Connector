@@ -5,9 +5,20 @@ from .logging_config import logger
 
 
 class ExplanationBuilder:
-    async def build(self, connection, level):
+    async def build(self, connection, level, profile=None, guidance: str = "", concept_a: str = "", concept_b: str = ""):
+        profile = profile or {}
         sys = EXPLAINER_SYSTEM
-        usr = EXPLAINER_USER.format(connection=connection, level=level)
+        usr = EXPLAINER_USER.format(
+            connection=connection,
+            level=level,
+            guidance=guidance or "Maintain clarity and inclusivity.",
+            education_level=profile.get("education_level") or "unspecified",
+            education_system=profile.get("education_system") or "unspecified",
+            concept_a=concept_a or "Concept A",
+            concept_b=concept_b or "Concept B",
+            concept_a_knowledge=profile.get("concept_a_knowledge", 0),
+            concept_b_knowledge=profile.get("concept_b_knowledge", 0),
+        )
         text = await ollama.agenerate(prompt=usr, system_prompt=sys, temperature=0.6)
         # LOG RAW LLM OUTPUT
         logger.debug("==== RAW EXPLANATION BUILDER OUTPUT ====")

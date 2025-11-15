@@ -8,13 +8,16 @@ A local multi-agent AI system that discovers and explains connections between co
 
 ### 💬 Multi-Agent Workflow
 
-| Agent                  | Role        | Description                                              |
-| ---------------------- | ----------- | -------------------------------------------------------- |
-| 🧩 Orchestrator        | Coordinator | Handles queries, manages memory, and synthesizes outputs |
-| 🔗 Connection Finder   | Discovery   | Finds conceptual links between two ideas using the LLM   |
-| 📘 Explanation Builder | Education   | Generates detailed, level‑adapted explanations           |
-| 🎨 Analogy Generator   | Creativity  | Creates intuitive analogies from everyday contexts       |
-| ⚖️ Bias Monitor        | Fairness    | Detects and flags bias or cultural imbalance in results  |
+| Agent                  | Role        | Description                                                     |
+| ---------------------- | ----------- | --------------------------------------------------------------- |
+| 🧩 Orchestrator        | Coordinator | Handles queries, manages memory, and synthesizes outputs        |
+| 🔗 Connection Finder   | Discovery   | Finds conceptual links between two ideas using the LLM          |
+| 📘 Explanation Builder | Education   | Generates detailed, level‑adapted explanations                  |
+| 🎨 Analogy Generator   | Creativity  | Creates intuitive analogies from everyday contexts              |
+| 🛡️ Content Reviewer    | Quality     | Verifies level alignment and surfaces actionable refinements    |
+| ⚖️ Bias Monitor        | Fairness    | Detects and flags bias or cultural imbalance in results         |
+| 📊 Fairness Auditor    | Metrics     | Computes transparency metrics (discipline diversity, language)  |
+| 🔁 Feedback Adapter    | Memory      | Turns learner feedback into prompt guidance for future outputs  |
 
 ---
 
@@ -25,12 +28,41 @@ A local multi-agent AI system that discovers and explains connections between co
 * REST API with routes under `/api/` for concept connection, feedback, and profile.
 * SQLite database for storing conversations, user preferences, and feedback.
 * Modular agent classes and centralized prompt templates.
+* Reviewer + fairness agents trigger automatic mitigation passes when level or bias issues are detected.
+
+### 🔄 System Workflow
+
+```mermaid
+flowchart TD
+    A[Learner submits concepts + level] --> B[Orchestrator retrieves profile & feedback]
+    B --> C[Feedback Adapter distills guidance]
+    C --> D[Connection Finder drafts cross-disciplinary links]
+    D --> E[Explanation Builder tailors walkthrough]
+    E --> F[Analogy Generator crafts comparisons]
+    F --> G[Bias Monitor performs qualitative check]
+    G --> H[Fairness Auditor computes diversity metrics]
+    H --> I[Content Reviewer validates level alignment]
+    I --> J{Issues detected?}
+    J -->|Yes| K[Mitigation loop: targeted re-prompts with guidance]
+    K --> B
+    J -->|No| L[Results packaged and persisted]
+    L --> M[Frontend renders graph, narrative, metrics]
+```
+
+1. **Context gathering** – The orchestrator loads learner profile traits, prior interactions, and the latest feedback to seed downstream prompts.
+2. **Guidance synthesis** – FeedbackAdapter summarizes the most relevant learner comments so each creative agent receives actionable suggestions.
+3. **Generation cascade** – ConnectionFinder, ExplanationBuilder, and AnalogyGenerator run in sequence, sharing context to maintain coherence.
+4. **Quality and fairness review** – BiasMonitor flags qualitative concerns while FairnessAuditor produces transparency metrics (discipline spread, geographic balance, language variety).
+5. **Content verification** – ContentReviewer checks that explanations match the requested knowledge level and highlights refinement opportunities.
+6. **Mitigation pass** – If reviewer or fairness checks fail, the orchestrator re-prompts the necessary agents with corrective guidance before finalizing the response.
+7. **Delivery & persistence** – Final artifacts, metrics, and applied mitigations are stored via the memory service and surfaced in the UI alongside a feedback form for continuous improvement.
 
 ### Frontend (Vanilla JS)
 
 * Responsive **two-column layout**: concept input on the left, results on the right.
 * Dynamic visualization using **D3.js** to draw concept graphs.
-* Sections for explanations, analogies, and bias review with styled Markdown output.
+* Sections for explanations, analogies, reviewer verdicts, fairness metrics, and bias review with styled Markdown output.
+* Built-in feedback form that posts ratings/comments back to the backend for continuous adaptation.
 
 ### Local LLM Integration
 
@@ -49,7 +81,10 @@ project/
 │   ├── connection_finder.py
 │   ├── explanation_builder.py
 │   ├── analogy_generator.py
-│   └── bias_monitor.py
+│   ├── bias_monitor.py
+│   ├── content_reviewer.py
+│   ├── fairness_auditor.py
+│   └── feedback_adapter.py
 ├── services/
 │   ├── ollama_service.py
 │   ├── memory_service.py
@@ -65,8 +100,6 @@ project/
 ├── database/
 │   ├── app.db
 │   └── schema.sql
-├── notebooks/
-│   └── fairness_metrics.ipynb
 └── requirements.txt
 ```
 
@@ -116,7 +149,11 @@ Then open **[http://localhost:5000](http://localhost:5000)** in your browser.
 
    * A D3 graph of conceptual links.
    * Cleanly formatted explanations and analogies.
-   * Bias review results.
+   * Reviewer verdicts and fairness metrics.
+   * Bias review results and any applied mitigation guidance.
+   * A feedback form to steer future generations.
+
+4. Submit optional feedback so the next responses better match your expectations.
 
 ---
 
@@ -174,10 +211,10 @@ textstat
 
 ## 🧩 Limitations & Future Work
 
-* Sequential agent calls (can be optimized with async).
-* Limited bias detection (expand with external datasets).
-* Basic readability heuristics (can integrate text complexity models).
-* No authentication or multi-user separation (planned).
+* Sequential agent calls can still be optimized for latency despite async orchestration.
+* Bias mitigation performs a single corrective pass; additional iterations or human review may be desirable for high-stakes use.
+* Fairness metrics rely on lightweight heuristics—consider complementing them with corpus-based evaluation.
+* Feedback adaptation is session-scoped and does not yet support multi-user personalization with authentication.
 
 ---
 
