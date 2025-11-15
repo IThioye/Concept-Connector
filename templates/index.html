@@ -146,6 +146,45 @@
           <div id="feedback-status" class="feedback-status" aria-live="polite"></div>
         </form>
       </div>
+
+      <div class="review-section hidden">
+        <h2>Level & Quality Review</h2>
+        <div id="content-review"></div>
+      </div>
+
+      <div class="fairness-section hidden">
+        <h2>Fairness Metrics</h2>
+        <div id="fairness-metrics"></div>
+      </div>
+
+      <div class="guidance-section hidden">
+        <h2>Applied Guidance</h2>
+        <div id="guidance-text"></div>
+      </div>
+
+      <div class="feedback-section hidden">
+        <h2>Was this helpful?</h2>
+        <p class="feedback-subtitle">Share a quick rating so the system can adapt future answers.</p>
+        <form id="feedback-form">
+          <input type="hidden" name="connection_id">
+          <div class="feedback-grid">
+            <label>Rating
+              <select name="rating">
+                <option value="5">5 - Excellent</option>
+                <option value="4" selected>4 - Helpful</option>
+                <option value="3">3 - Average</option>
+                <option value="2">2 - Confusing</option>
+                <option value="1">1 - Not helpful</option>
+              </select>
+            </label>
+            <label>Comments (optional)
+              <textarea name="comments" rows="3" placeholder="What should we adjust next time?"></textarea>
+            </label>
+          </div>
+          <button type="submit" class="primary-btn compact">Submit feedback</button>
+          <div id="feedback-status" class="feedback-status" aria-live="polite"></div>
+        </form>
+      </div>
     </div>
   </section>
 </div>

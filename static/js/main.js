@@ -372,6 +372,44 @@ if (feedbackForm) {
     });
 }
 
+const feedbackForm = qs('#feedback-form');
+if (feedbackForm) {
+    feedbackForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fd = new FormData(feedbackForm);
+        const payload = {
+            session_id: sessionId,
+            rating: fd.get('rating') ? Number(fd.get('rating')) : null,
+            comments: fd.get('comments')?.trim() || null,
+            connection_id: (lastResult?.connections?.path || []).join(' → ') || null,
+        };
+
+        const status = qs('#feedback-status');
+        try {
+            const res = await fetch('/api/feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+
+            if (!res.ok) {
+                throw new Error(`HTTP ${res.status}`);
+            }
+
+            if (status) {
+                status.textContent = 'Thanks for the feedback!';
+                status.classList.remove('error');
+            }
+        } catch (err) {
+            console.error('Feedback error', err);
+            if (status) {
+                status.textContent = 'Could not save feedback. Please try again later.';
+                status.classList.add('error');
+            }
+        }
+    });
+}
+
 
 /* --------------------------------------------------------------------------
    GRAPH RENDERING FOR SINGLE CONNECTION OBJECT
@@ -421,6 +459,139 @@ function renderGraph(connection) {
 }
 
 
+
+function prepareFeedbackForm() {
+    const wrapper = qs('.feedback-section');
+    const form = qs('#feedback-form');
+    const status = qs('#feedback-status');
+    if (status) {
+        status.textContent = '';
+        status.classList.remove('error');
+    }
+    if (!wrapper || !form) return;
+
+    const connectionInput = form.querySelector('input[name="connection_id"]');
+    if (connectionInput) {
+        const path = (lastResult?.connections?.path || []).join(' → ');
+        connectionInput.value = path;
+    }
+
+    const ratingField = form.querySelector('select[name="rating"]');
+    if (ratingField) {
+        ratingField.value = '4';
+    }
+
+    const commentsField = form.querySelector('textarea[name="comments"]');
+    if (commentsField) {
+        commentsField.value = '';
+    }
+    wrapper.classList.remove('hidden');
+}
+
+function renderBiasSection(items, hasBiasFlag) {
+    const wrapper = qs('.bias-review');
+    const biasEl = qs('#bias-output');
+    if (!biasEl || !wrapper) return;
+
+    if (Array.isArray(items) && items.length) {
+        biasEl.innerHTML = `<ul>${items.map(item => `<li>${item}</li>`).join('')}</ul>`;
+    } else {
+        biasEl.innerHTML = '<p>No bias concerns surfaced.</p>';
+    }
+
+    wrapper.classList.remove('hidden');
+    wrapper.classList.toggle('has-alert', !!hasBiasFlag);
+}
+
+function renderReviewSection(review) {
+    const container = qs('#content-review');
+    const wrapper = qs('.review-section');
+    if (!container || !wrapper) return;
+
+    if (!review) {
+        container.innerHTML = '<p>No reviewer feedback available.</p>';
+        wrapper.classList.remove('hidden');
+        return;
+    }
+
+    const issues = Array.isArray(review.issues) && review.issues.length
+        ? `<ul>${review.issues.map(item => `<li>${item}</li>`).join('')}</ul>`
+        : '<p>No issues flagged.</p>';
+
+    const actions = Array.isArray(review.suggested_actions) && review.suggested_actions.length
+        ? `<ul>${review.suggested_actions.map(item => `<li>${item}</li>`).join('')}</ul>`
+        : '<p>No further actions required.</p>';
+
+    container.innerHTML = `
+        <div class="review-summary">
+            <div><strong>Level alignment:</strong> ${review.level_alignment ? '✅ On target' : '⚠️ Needs adjustment'}</div>
+            <div><strong>Estimated reading level:</strong> ${review.reading_level || 'n/a'}</div>
+            <div><strong>Bias risk:</strong> ${review.bias_risk || 'unknown'}</div>
+        </div>
+        <div class="review-issues">
+            <h4>Issues</h4>
+            ${issues}
+        </div>
+        <div class="review-actions">
+            <h4>Suggested actions</h4>
+            ${actions}
+        </div>
+    `;
+
+    wrapper.classList.remove('hidden');
+}
+
+function renderFairnessSection(fairness) {
+    const container = qs('#fairness-metrics');
+    const wrapper = qs('.fairness-section');
+    if (!container || !wrapper) return;
+
+    if (!fairness || !Array.isArray(fairness.metrics)) {
+        container.innerHTML = '<p>Fairness metrics unavailable.</p>';
+        wrapper.classList.remove('hidden');
+        return;
+    }
+
+    const rows = fairness.metrics.map(metric => {
+        const value = Number(metric.value) || 0;
+        const pct = Math.max(0, Math.min(100, Math.round(value * 100)));
+        return `
+            <li class="fairness-metric">
+                <div class="metric-header">
+                    <span class="metric-name">${metric.label}</span>
+                    <span class="metric-value">${pct}%</span>
+                </div>
+                <div class="metric-bar">
+                    <span class="metric-bar-fill" style="width:${pct}%"></span>
+                </div>
+                <p class="metric-detail">${metric.detail || ''}</p>
+            </li>
+        `;
+    }).join('');
+
+    container.innerHTML = `
+        <div class="fairness-overall">Overall fairness score: <strong>${fairness.overall ?? 'n/a'}</strong></div>
+        <ul class="fairness-list">${rows}</ul>
+    `;
+
+    wrapper.classList.remove('hidden');
+}
+
+function renderGuidanceSection(guidance, mitigated, mitigationText) {
+    const wrapper = qs('.guidance-section');
+    const textEl = qs('#guidance-text');
+    if (!wrapper || !textEl) return;
+
+    const applied = guidance && guidance.trim().length
+        ? guidance
+        : 'No personalised guidance applied.';
+    const mitigationNote = mitigated && mitigationText
+        ? `<div class="mitigation-note"><strong>Mitigation applied:</strong> ${mitigationText}</div>`
+        : '';
+
+    textEl.innerHTML = `<p>${applied}</p>${mitigationNote}`;
+    wrapper.classList.remove('hidden');
+}
 
 function prepareFeedbackForm() {
     const wrapper = qs('.feedback-section');
