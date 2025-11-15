@@ -372,43 +372,6 @@ if (feedbackForm) {
     });
 }
 
-const feedbackForm = qs('#feedback-form');
-if (feedbackForm) {
-    feedbackForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const fd = new FormData(feedbackForm);
-        const payload = {
-            session_id: sessionId,
-            rating: fd.get('rating') ? Number(fd.get('rating')) : null,
-            comments: fd.get('comments')?.trim() || null,
-            connection_id: (lastResult?.connections?.path || []).join(' → ') || null,
-        };
-
-        const status = qs('#feedback-status');
-        try {
-            const res = await fetch('/api/feedback', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
-
-            if (!res.ok) {
-                throw new Error(`HTTP ${res.status}`);
-            }
-
-            if (status) {
-                status.textContent = 'Thanks for the feedback!';
-                status.classList.remove('error');
-            }
-        } catch (err) {
-            console.error('Feedback error', err);
-            if (status) {
-                status.textContent = 'Could not save feedback. Please try again later.';
-                status.classList.add('error');
-            }
-        }
-    });
-}
 
 
 /* --------------------------------------------------------------------------
