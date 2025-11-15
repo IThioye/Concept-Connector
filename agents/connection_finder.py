@@ -46,12 +46,21 @@ def extract_json(text):
 class ConnectionFinder:
     async def find(self, concept_a, concept_b, level, ctx):
         sys = CONNECTION_FINDER_SYSTEM.format(level=level)
+        profile = ctx.get('profile') or {}
+        education_level = profile.get('education_level') or "unspecified"
+        education_system = profile.get('education_system') or "unspecified"
+        concept_a_knowledge = profile.get('concept_a_knowledge', 0)
+        concept_b_knowledge = profile.get('concept_b_knowledge', 0)
         usr = CONNECTION_FINDER_USER.format(
             concept_a=concept_a,
             concept_b=concept_b,
             level=level,
             history=ctx.get('history', []),
-            preferences=ctx.get('feedback_guidance', 'None provided')
+            preferences=ctx.get('feedback_guidance', 'None provided'),
+            education_level=education_level,
+            education_system=education_system,
+            concept_a_knowledge=concept_a_knowledge,
+            concept_b_knowledge=concept_b_knowledge,
         )
 
         raw_text = await ollama.agenerate(prompt=usr, system_prompt=sys, temperature=0.5)

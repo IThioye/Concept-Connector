@@ -27,7 +27,12 @@ Requirements:
   (e.g. "biology", "physics", "philosophy", "economics", "art").
 
 Context (recent queries): {history}
-Knowledge level: {level}
+Learner knowledge level: {level}
+Learner profile:
+- Education level: {education_level}
+- Education system: {education_system}
+- Prior knowledge of "{concept_a}": {concept_a_knowledge}/5
+- Prior knowledge of "{concept_b}": {concept_b_knowledge}/5
 Learner feedback/preferences to respect: {preferences}
 
 Return ONLY valid JSON. Do not include markdown, explanations, or any text outside the JSON.
@@ -56,7 +61,11 @@ This JSON contains:
 - "disciplines": the fields each concept belongs to.
 - "strength": a score for how strong the connection is.
 
-Learner knowledge level: {level}
+Learner profile:
+- Knowledge level: {level}
+- Education level: {education_level}
+- Education system: {education_system}
+- Prior knowledge ratings — "{concept_a}": {concept_a_knowledge}/5, "{concept_b}": {concept_b_knowledge}/5
 Additional guidance from prior feedback/reviewers: {guidance}
 
 CRITICAL:
@@ -68,7 +77,7 @@ Instructions:
 1. Start with a short overview (2-3 sentences) of how the two main concepts are related.
 2. Then explain each step in the path in 1-2 sentences each (use bullet points or numbers).
 3. Use bold for key ideas.
-4. Include at least one real-life example.
+4. Include at least one real-life example tailored to the learner's educational context.
 5. Do NOT output any JSON. Only Markdown-like text.
 """
 
@@ -85,7 +94,11 @@ Create 2–3 concise analogies for the following connection:
 
 {connection}
 
-Level: {level}
+Learner profile:
+- Knowledge level: {level}
+- Education level: {education_level}
+- Education system: {education_system}
+- Prior knowledge ratings — "{concept_a}": {concept_a_knowledge}/5, "{concept_b}": {concept_b_knowledge}/5
 Additional guidance to respect: {guidance}
 
 Return them as a Markdown bullet list (each analogy on its own line starting with "- ").
@@ -138,6 +151,9 @@ Return concise bullet text in the arrays; if no issues simply return an empty li
 REVIEW_USER = """
 Evaluate whether the following content matches the learner profile.
 - Learner knowledge level: {level}
+- Education level: {education_level}
+- Education system: {education_system}
+- Prior knowledge ratings — "{concept_a}": {concept_a_knowledge}/5, "{concept_b}": {concept_b_knowledge}/5
 
 Content to review (JSON-like bundle):
 {content}

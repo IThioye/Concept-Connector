@@ -57,3 +57,40 @@ class MemoryService:
             for row in rows
             if row[0] is not None or (row[1] and row[1].strip())
         ]
+
+    def recent_results(self, session_id, limit=5):
+        if session_id is None:
+            return []
+
+        cur = self.conn.cursor()
+        cur.execute(
+            """
+            SELECT concept_a, concept_b, result_json, timestamp
+            FROM conversations
+            WHERE session_id=?
+            ORDER BY timestamp DESC
+            LIMIT ?
+            """,
+            (session_id, limit),
+        )
+
+        rows = cur.fetchall()
+        results = []
+        for concept_a, concept_b, result_json, timestamp in rows:
+            try:
+                payload = json.loads(result_json) if result_json else {}
+            except json.JSONDecodeError:
+                payload = {}
+
+            results.append(
+                {
+                    "timestamp": timestamp,
+                    "concept_a": concept_a,
+                    "concept_b": concept_b,
+                    "bias_review": payload.get("bias_review", []),
+                    "bias_flag": bool(payload.get("bias_flag")),
+                    "fairness": payload.get("fairness"),
+                }
+            )
+
+        return results

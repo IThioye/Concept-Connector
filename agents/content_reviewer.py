@@ -22,11 +22,28 @@ def _safe_json_parse(text: str) -> Dict[str, Any]:
 
 
 class ContentReviewer:
-    async def evaluate(self, bundle: Dict[str, Any], level: str) -> Dict[str, Any]:
+    async def evaluate(
+        self,
+        bundle: Dict[str, Any],
+        level: str,
+        profile: Dict[str, Any] | None = None,
+        concept_a: str = "",
+        concept_b: str = "",
+    ) -> Dict[str, Any]:
         """Ask the reviewer LLM to analyse level-fit and potential bias signals."""
 
         sys = REVIEW_SYSTEM
-        usr = REVIEW_USER.format(level=level, content=json.dumps(bundle, ensure_ascii=False))
+        profile = profile or {}
+        usr = REVIEW_USER.format(
+            level=level,
+            education_level=profile.get("education_level") or "unspecified",
+            education_system=profile.get("education_system") or "unspecified",
+            concept_a=concept_a or "Concept A",
+            concept_b=concept_b or "Concept B",
+            concept_a_knowledge=profile.get("concept_a_knowledge", 0),
+            concept_b_knowledge=profile.get("concept_b_knowledge", 0),
+            content=json.dumps(bundle, ensure_ascii=False),
+        )
         text = await ollama.agenerate(prompt=usr, system_prompt=sys, temperature=0.2)
         logger.debug("==== RAW REVIEWER OUTPUT ====")
         logger.debug(text)

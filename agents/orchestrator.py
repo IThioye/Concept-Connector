@@ -45,15 +45,25 @@ class Orchestrator:
         self.feedback = FeedbackAdapter()
         self._cache = _LRUCache(maxsize=cache_size)
 
-    async def prepare_context(self, concept_a, concept_b, level, session_id=None):
+    async def prepare_context(self, concept_a, concept_b, level, session_id=None, profile_overrides=None):
         if session_id is None:
             history = []
-            profile = {"knowledge_level": level}
+            profile = {
+                "knowledge_level": level,
+                "education_level": None,
+                "education_system": None,
+                "concept_a_knowledge": 0,
+                "concept_b_knowledge": 0,
+            }
             feedback_rows = []
         else:
             history = await asyncio.to_thread(self.memory.last_queries, session_id, 3)
             profile = await asyncio.to_thread(self.profiles.get_profile, session_id)
             feedback_rows = await asyncio.to_thread(self.memory.recent_feedback, session_id, 5)
+
+        if profile_overrides:
+            profile = profile or {}
+            profile.update({k: v for k, v in profile_overrides.items() if v is not None})
 
         guidance = self.feedback.summarise(feedback_rows, level)
         return {
@@ -66,19 +76,34 @@ class Orchestrator:
             "feedback_guidance": guidance,
         }
 
-    async def process_query_async(self, concept_a, concept_b, level, session_id=None):
+    async def process_query_async(self, concept_a, concept_b, level, session_id=None, profile_overrides=None):
         cache_key = (concept_a.lower(), concept_b.lower(), level.lower() if isinstance(level, str) else level)
         cached = self._cache.get(cache_key)
         if cached:
             await asyncio.to_thread(self.memory.save_interaction, session_id, concept_a, concept_b, cached)
             return cached
 
-        ctx = await self.prepare_context(concept_a, concept_b, level, session_id)
+        ctx = await self.prepare_context(concept_a, concept_b, level, session_id, profile_overrides=profile_overrides)
         guidance = ctx.get("feedback_guidance", "")
         connections = await self.connection_finder.find(concept_a, concept_b, level, ctx)
 
-        explanations_task = asyncio.create_task(self.explainer.build(connections, level, guidance=guidance))
-        analogies_task = asyncio.create_task(self.analogies.generate(connections if connections else None, level, guidance=guidance))
+        profile = ctx.get("profile") or {}
+        explanations_task = asyncio.create_task(self.explainer.build(
+            connections,
+            level,
+            profile=profile,
+            guidance=guidance,
+            concept_a=concept_a,
+            concept_b=concept_b,
+        ))
+        analogies_task = asyncio.create_task(self.analogies.generate(
+            connections if connections else None,
+            level,
+            profile=profile,
+            guidance=guidance,
+            concept_a=concept_a,
+            concept_b=concept_b,
+        ))
         explanations, analogies = await asyncio.gather(explanations_task, analogies_task)
 
         bundle = {
@@ -88,7 +113,13 @@ class Orchestrator:
         }
 
         bias_review = await self.bias.review(bundle)
-        content_review = await self.reviewer.evaluate(bundle, level=level)
+        content_review = await self.reviewer.evaluate(
+            bundle,
+            level=level,
+            profile=profile,
+            concept_a=concept_a,
+            concept_b=concept_b,
+        )
         fairness_metrics = self.fairness.evaluate(connections or {}, explanations, analogies)
 
         mitigation_triggered = bias_review.get("has_bias") or not content_review.get("level_alignment", True)
@@ -96,15 +127,35 @@ class Orchestrator:
         if mitigation_triggered:
             mitigation_guidance = self._compose_guidance(guidance, content_review, bias_review)
             explanations, analogies = await asyncio.gather(
-                self.explainer.build(connections, level, guidance=mitigation_guidance),
-                self.analogies.generate(connections if connections else None, level, guidance=mitigation_guidance),
+                self.explainer.build(
+                    connections,
+                    level,
+                    profile=profile,
+                    guidance=mitigation_guidance,
+                    concept_a=concept_a,
+                    concept_b=concept_b,
+                ),
+                self.analogies.generate(
+                    connections if connections else None,
+                    level,
+                    profile=profile,
+                    guidance=mitigation_guidance,
+                    concept_a=concept_a,
+                    concept_b=concept_b,
+                ),
             )
             bundle = {
                 'connections': connections,
                 'explanations': explanations,
                 'analogies': analogies
             }
-            content_review = await self.reviewer.evaluate(bundle, level=level)
+            content_review = await self.reviewer.evaluate(
+                bundle,
+                level=level,
+                profile=profile,
+                concept_a=concept_a,
+                concept_b=concept_b,
+            )
             fairness_metrics = self.fairness.evaluate(connections or {}, explanations, analogies)
 
         result = {
@@ -126,8 +177,16 @@ class Orchestrator:
         self._cache.set(cache_key, result)
         return result
 
-    def process_query(self, concept_a, concept_b, level, session_id=None):
-        return asyncio.run(self.process_query_async(concept_a, concept_b, level, session_id=session_id))
+    def process_query(self, concept_a, concept_b, level, session_id=None, profile_overrides=None):
+        return asyncio.run(
+            self.process_query_async(
+                concept_a,
+                concept_b,
+                level,
+                session_id=session_id,
+                profile_overrides=profile_overrides,
+            )
+        )
 
     @staticmethod
     def _compose_guidance(base_guidance: str, content_review, bias_review) -> str:
