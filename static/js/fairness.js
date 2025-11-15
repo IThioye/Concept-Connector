@@ -1,6 +1,36 @@
 const sessionKey = 'connectorSessionId';
+const fairnessCacheKey = 'connectorFairnessCache';
+
+function computeAggregate(items) {
+  if (!Array.isArray(items) || !items.length) {
+    return { avg_overall: null, runs: 0, bias_flags: 0 };
+  }
+
+  const overalls = items
+    .map((entry) => entry?.fairness?.overall)
+    .filter((value) => typeof value === 'number');
+
+  const avg = overalls.length
+    ? Math.round((overalls.reduce((acc, value) => acc + value, 0) / overalls.length) * 100) / 100
+    : null;
+
+  return {
+    avg_overall: avg,
+    runs: items.length,
+    bias_flags: items.filter((entry) => entry?.bias_flag).length,
+  };
+}
+
+function getSessionIdFromQuery() {
+  const params = new URLSearchParams(window.location.search);
+  const fromUrl = params.get('session_id');
+  return fromUrl && fromUrl.trim() ? fromUrl.trim() : null;
+}
 
 function resolveSessionId() {
+  const fromQuery = getSessionIdFromQuery();
+  if (fromQuery) return fromQuery;
+
   try {
     let existing = localStorage.getItem(sessionKey);
     if (!existing) {
@@ -16,18 +46,54 @@ function resolveSessionId() {
 
 const sessionId = resolveSessionId();
 
+function loadCachedFairness() {
+  try {
+    const raw = localStorage.getItem(fairnessCacheKey);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    if (!parsed.aggregate) {
+      parsed.aggregate = computeAggregate(parsed.items || []);
+    }
+    return parsed;
+  } catch (error) {
+    console.warn('Unable to read cached fairness data', error);
+    return null;
+  }
+}
+
+function persistFairness(payload) {
+  try {
+    localStorage.setItem(fairnessCacheKey, JSON.stringify(payload));
+  } catch (error) {
+    console.warn('Unable to persist fairness cache', error);
+  }
+}
+
 async function fetchFairness() {
   try {
-    const res = await fetch(`/api/fairness?session_id=${encodeURIComponent(sessionId)}&limit=6`);
+    const res = await fetch(`/api/fairness?session_id=${encodeURIComponent(sessionId)}&limit=6`, {
+      cache: 'no-store',
+    });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
+    const data = await res.json();
+    if (Array.isArray(data.items) && data.items.length) {
+      const aggregate = data.aggregate && typeof data.aggregate === 'object'
+        ? data.aggregate
+        : computeAggregate(data.items);
+      persistFairness({ items: data.items, aggregate });
+    }
+    return data;
   } catch (error) {
     console.error('Unable to load fairness data', error);
     return { items: [], aggregate: { avg_overall: null, runs: 0, bias_flags: 0 } };
   }
 }
 
-function renderSummary(aggregate) {
+function renderSummary(aggregate, items = []) {
+  if (!aggregate || typeof aggregate !== 'object') {
+    aggregate = computeAggregate(items);
+  }
   const avg = document.getElementById('avg-fairness');
   const runs = document.getElementById('reviewed-count');
   const bias = document.getElementById('bias-count');
@@ -110,14 +176,28 @@ function renderHistory(items) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  const data = await fetchFairness();
-  renderSummary(data.aggregate || {});
-  renderHistory(data.items || []);
+  let data = await fetchFairness();
+  if (!Array.isArray(data.items) || !data.items.length) {
+    const cached = loadCachedFairness();
+    if (cached) {
+      data = cached;
+    }
+  }
+  const items = Array.isArray(data.items) ? data.items : [];
+  renderSummary(data.aggregate, items);
+  renderHistory(items);
 });
 
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState !== 'visible') return;
-  const data = await fetchFairness();
-  renderSummary(data.aggregate || {});
-  renderHistory(data.items || []);
+  let data = await fetchFairness();
+  if (!Array.isArray(data.items) || !data.items.length) {
+    const cached = loadCachedFairness();
+    if (cached) {
+      data = cached;
+    }
+  }
+  const items = Array.isArray(data.items) ? data.items : [];
+  renderSummary(data.aggregate, items);
+  renderHistory(items);
 });

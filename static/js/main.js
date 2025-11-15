@@ -26,6 +26,12 @@ const sessionId = (() => {
 
 const queryForm = qs('#query-form');
 
+const fairnessNavLink = qs('a.nav-link[href="/fairness"], a.nav-link[href="/fairness/"]');
+if (fairnessNavLink && sessionId) {
+    const baseHref = fairnessNavLink.getAttribute('href').split('?')[0];
+    fairnessNavLink.setAttribute('href', `${baseHref}?session_id=${encodeURIComponent(sessionId)}`);
+}
+
 const progressSteps = [
     { id: 'context', label: 'Gathering learner context' },
     { id: 'connection', label: 'Finding conceptual bridge' },

@@ -38,7 +38,7 @@ class ExplanationBuilder:
                 if isinstance(outer, dict) and "response" in outer:
                     candidate = outer.get("response", "")
                 else:
-                    candidate = raw_text
+                    candidate = outer
             except json.JSONDecodeError:
                 candidate = raw_text
 
