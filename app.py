@@ -12,7 +12,12 @@ orchestrator = Orchestrator(memory=mem, profiles=profiles)
 
 @app.route("/")
 def home():
-    return render_template("index.html")
+    return render_template("index.html", active_page="home")
+
+
+@app.route("/fairness")
+def fairness_page():
+    return render_template("fairness.html", active_page="fairness")
 
 
 @app.post("/api/connect")
@@ -24,7 +29,33 @@ def api_connect():
     session_id = data.get("session_id")
 
 
-    result = orchestrator.process_query(concept_a, concept_b, level, session_id=session_id)
+    def _parse_int(value, default=0):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return default
+
+    profile_data = {
+        "session_id": session_id,
+        "knowledge_level": level,
+        "education_level": data.get("education_level"),
+        "education_system": data.get("education_system"),
+        "concept_a_knowledge": _parse_int(data.get("concept_a_knowledge")),
+        "concept_b_knowledge": _parse_int(data.get("concept_b_knowledge")),
+    }
+
+    if session_id:
+        profiles.upsert_profile(profile_data)
+
+    profile_overrides = {k: v for k, v in profile_data.items() if k != "session_id"}
+
+    result = orchestrator.process_query(
+        concept_a,
+        concept_b,
+        level,
+        session_id=session_id,
+        profile_overrides=profile_overrides,
+    )
     return jsonify(result)
 
 
@@ -46,6 +77,26 @@ def feedback():
     data = request.get_json(force=True)
     mem.save_feedback(**data)
     return jsonify({"ok": True})
+
+
+@app.get("/api/fairness")
+def get_fairness():
+    session_id = request.args.get("session_id")
+    limit = int(request.args.get("limit", 5))
+    items = mem.recent_results(session_id, limit)
+
+    overalls = [
+        entry.get("fairness", {}).get("overall")
+        for entry in items
+        if isinstance(entry.get("fairness", {}).get("overall"), (int, float))
+    ]
+    aggregate = {
+        "avg_overall": round(sum(overalls) / len(overalls), 2) if overalls else None,
+        "runs": len(items),
+        "bias_flags": sum(1 for entry in items if entry.get("bias_flag")),
+    }
+
+    return jsonify({"items": items, "aggregate": aggregate})
 
 
 if __name__ == "__main__":
