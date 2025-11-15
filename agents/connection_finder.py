@@ -50,7 +50,8 @@ class ConnectionFinder:
             concept_a=concept_a,
             concept_b=concept_b,
             level=level,
-            history=ctx.get('history', [])
+            history=ctx.get('history', []),
+            preferences=ctx.get('feedback_guidance', 'None provided')
         )
 
         raw_text = await ollama.agenerate(prompt=usr, system_prompt=sys, temperature=0.5)
