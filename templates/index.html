@@ -32,11 +32,33 @@
           <div id="profile-content" class="profile-content">
             <label>Knowledge Level
               <select name="knowledge_level">
-                <option>beginner</option>
-                <option selected>intermediate</option>
-                <option>advanced</option>
+                <option value="beginner">beginner</option>
+                <option value="intermediate" selected>intermediate</option>
+                <option value="advanced">advanced</option>
               </select>
             </label>
+
+            <label>Education Level
+              <input name="education_level" placeholder="e.g., Undergraduate" />
+            </label>
+
+            <label>Education System
+              <input name="education_system" placeholder="e.g., IB, US K-12, GCSE" />
+            </label>
+
+            <div class="knowledge-sliders">
+              <label class="slider-field">
+                <span class="slider-label">Prior knowledge of <strong data-concept="a">Concept A</strong></span>
+                <input type="range" name="concept_a_knowledge" min="0" max="5" step="1" value="0">
+                <span class="slider-value" data-display="concept_a">0</span>
+              </label>
+
+              <label class="slider-field">
+                <span class="slider-label">Prior knowledge of <strong data-concept="b">Concept B</strong></span>
+                <input type="range" name="concept_b_knowledge" min="0" max="5" step="1" value="0">
+                <span class="slider-value" data-display="concept_b">0</span>
+              </label>
+            </div>
           </div>
         </div>
 
@@ -73,8 +95,11 @@
   <!-- Right column: results -->
   <section class="results-area">
     <div id="progress" class="hidden">
-      <div class="progress-spinner"></div>
-      Loading...
+      <div class="progress-header">
+        <div class="progress-spinner"></div>
+        <div class="progress-text">Preparing agents...</div>
+      </div>
+      <ul id="progress-steps" class="progress-steps"></ul>
     </div>
 
     <div id="connection-flow"></div>
@@ -89,18 +114,36 @@
       </div>
 
       <div class="explanation-section hidden">
-        <h2>Explanations</h2>
+        <h2>Explanation &amp; Analogies</h2>
         <div id="explanations"></div>
+        <div id="analogies-wrapper" class="analogies-inline hidden">
+          <h3>Analogies</h3>
+          <div id="analogies"></div>
+        </div>
       </div>
 
-      <div class="analogy-section hidden">
-        <h2>Analogies</h2>
-        <div id="analogies"></div>
-      </div>
-
-      <div class="bias-review hidden">
-        <h2>Bias Monitor</h2>
-        <div id="bias-output"></div>
+      <div class="feedback-section hidden">
+        <h2>Was this helpful?</h2>
+        <p class="feedback-subtitle">Share a quick rating so the system can adapt future answers.</p>
+        <form id="feedback-form">
+          <input type="hidden" name="connection_id">
+          <div class="feedback-grid">
+            <label>Rating
+              <select name="rating">
+                <option value="5">5 - Excellent</option>
+                <option value="4" selected>4 - Helpful</option>
+                <option value="3">3 - Average</option>
+                <option value="2">2 - Confusing</option>
+                <option value="1">1 - Not helpful</option>
+              </select>
+            </label>
+            <label>Comments (optional)
+              <textarea name="comments" rows="3" placeholder="What should we adjust next time?"></textarea>
+            </label>
+          </div>
+          <button type="submit" class="primary-btn compact">Submit feedback</button>
+          <div id="feedback-status" class="feedback-status" aria-live="polite"></div>
+        </form>
       </div>
     </div>
   </section>

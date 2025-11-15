@@ -12,10 +12,14 @@ timestamp TEXT
 
 
 CREATE TABLE IF NOT EXISTS user_profiles (
-id INTEGER PRIMARY KEY,
-session_id TEXT UNIQUE,
-knowledge_level TEXT,
-preferred_examples TEXT
+    id INTEGER PRIMARY KEY,
+    session_id TEXT UNIQUE,
+    knowledge_level TEXT,
+    preferred_examples TEXT,
+    education_level TEXT,
+    education_system TEXT,
+    concept_a_knowledge INTEGER,
+    concept_b_knowledge INTEGER
 );
 
 
