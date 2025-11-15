@@ -3,6 +3,26 @@ const qsa = (s, r=document) => Array.from(r.querySelectorAll(s));
 
 // Session history stored in memory
 let sessionHistory = [];
+let lastResult = null;
+let lastConceptPair = { conceptA: '', conceptB: '' };
+
+const sessionId = (() => {
+    const key = 'connectorSessionId';
+    try {
+        let existing = localStorage.getItem(key);
+        if (!existing) {
+            const random = (window.crypto && window.crypto.randomUUID)
+                ? window.crypto.randomUUID()
+                : `session-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+            localStorage.setItem(key, random);
+            existing = random;
+        }
+        return existing;
+    } catch (error) {
+        console.warn('Falling back to ephemeral session id', error);
+        return `session-${Date.now()}`;
+    }
+})();
 
 // Load history on page load
 loadHistory();
@@ -59,18 +79,22 @@ qs('#query-form').addEventListener('submit', async (e) => {
     
     const fd = new FormData(e.target);
     const body = Object.fromEntries(fd.entries());
-    
+    body.session_id = sessionId;
+    lastConceptPair = { conceptA: body.concept_a, conceptB: body.concept_b };
+
     try {
         const res = await fetch('/api/connect', {
-            method:'POST', 
-            headers:{'Content-Type':'application/json'}, 
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
             body: JSON.stringify(body)
         });
         
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         
         const data = await res.json();
-        
+
+        lastResult = data;
+
         addToHistory(body.concept_a, body.concept_b, data);
         renderResults(data);
         
@@ -94,6 +118,44 @@ qs('#query-form').addEventListener('submit', async (e) => {
         submitBtn.textContent = originalText;
     }
 });
+
+const feedbackForm = qs('#feedback-form');
+if (feedbackForm) {
+    feedbackForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fd = new FormData(feedbackForm);
+        const payload = {
+            session_id: sessionId,
+            rating: fd.get('rating') ? Number(fd.get('rating')) : null,
+            comments: fd.get('comments')?.trim() || null,
+            connection_id: (lastResult?.connections?.path || []).join(' → ') || null,
+        };
+
+        const status = qs('#feedback-status');
+        try {
+            const res = await fetch('/api/feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+
+            if (!res.ok) {
+                throw new Error(`HTTP ${res.status}`);
+            }
+
+            if (status) {
+                status.textContent = 'Thanks for the feedback!';
+                status.classList.remove('error');
+            }
+        } catch (err) {
+            console.error('Feedback error', err);
+            if (status) {
+                status.textContent = 'Could not save feedback. Please try again later.';
+                status.classList.add('error');
+            }
+        }
+    });
+}
 
 
 /* --------------------------------------------------------------------------
@@ -149,13 +211,146 @@ function renderGraph(connection) {
    RENDER RESULTS
 ---------------------------------------------------------------------------*/
 
+function renderBiasSection(items, hasBiasFlag) {
+    const wrapper = qs('.bias-review');
+    const biasEl = qs('#bias-output');
+    if (!biasEl || !wrapper) return;
+
+    if (Array.isArray(items) && items.length) {
+        biasEl.innerHTML = `<ul>${items.map(item => `<li>${item}</li>`).join('')}</ul>`;
+    } else {
+        biasEl.innerHTML = '<p>No bias concerns surfaced.</p>';
+    }
+
+    wrapper.classList.remove('hidden');
+    wrapper.classList.toggle('has-alert', !!hasBiasFlag);
+}
+
+function renderReviewSection(review) {
+    const container = qs('#content-review');
+    const wrapper = qs('.review-section');
+    if (!container || !wrapper) return;
+
+    if (!review) {
+        container.innerHTML = '<p>No reviewer feedback available.</p>';
+        wrapper.classList.remove('hidden');
+        return;
+    }
+
+    const issues = Array.isArray(review.issues) && review.issues.length
+        ? `<ul>${review.issues.map(item => `<li>${item}</li>`).join('')}</ul>`
+        : '<p>No issues flagged.</p>';
+
+    const actions = Array.isArray(review.suggested_actions) && review.suggested_actions.length
+        ? `<ul>${review.suggested_actions.map(item => `<li>${item}</li>`).join('')}</ul>`
+        : '<p>No further actions required.</p>';
+
+    container.innerHTML = `
+        <div class="review-summary">
+            <div><strong>Level alignment:</strong> ${review.level_alignment ? '✅ On target' : '⚠️ Needs adjustment'}</div>
+            <div><strong>Estimated reading level:</strong> ${review.reading_level || 'n/a'}</div>
+            <div><strong>Bias risk:</strong> ${review.bias_risk || 'unknown'}</div>
+        </div>
+        <div class="review-issues">
+            <h4>Issues</h4>
+            ${issues}
+        </div>
+        <div class="review-actions">
+            <h4>Suggested actions</h4>
+            ${actions}
+        </div>
+    `;
+
+    wrapper.classList.remove('hidden');
+}
+
+function renderFairnessSection(fairness) {
+    const container = qs('#fairness-metrics');
+    const wrapper = qs('.fairness-section');
+    if (!container || !wrapper) return;
+
+    if (!fairness || !Array.isArray(fairness.metrics)) {
+        container.innerHTML = '<p>Fairness metrics unavailable.</p>';
+        wrapper.classList.remove('hidden');
+        return;
+    }
+
+    const rows = fairness.metrics.map(metric => {
+        const value = Number(metric.value) || 0;
+        const pct = Math.max(0, Math.min(100, Math.round(value * 100)));
+        return `
+            <li class="fairness-metric">
+                <div class="metric-header">
+                    <span class="metric-name">${metric.label}</span>
+                    <span class="metric-value">${pct}%</span>
+                </div>
+                <div class="metric-bar">
+                    <span class="metric-bar-fill" style="width:${pct}%"></span>
+                </div>
+                <p class="metric-detail">${metric.detail || ''}</p>
+            </li>
+        `;
+    }).join('');
+
+    container.innerHTML = `
+        <div class="fairness-overall">Overall fairness score: <strong>${fairness.overall ?? 'n/a'}</strong></div>
+        <ul class="fairness-list">${rows}</ul>
+    `;
+
+    wrapper.classList.remove('hidden');
+}
+
+function renderGuidanceSection(guidance, mitigated, mitigationText) {
+    const wrapper = qs('.guidance-section');
+    const textEl = qs('#guidance-text');
+    if (!wrapper || !textEl) return;
+
+    const applied = guidance && guidance.trim().length
+        ? guidance
+        : 'No personalised guidance applied.';
+    const mitigationNote = mitigated && mitigationText
+        ? `<div class="mitigation-note"><strong>Mitigation applied:</strong> ${mitigationText}</div>`
+        : '';
+
+    textEl.innerHTML = `<p>${applied}</p>${mitigationNote}`;
+    wrapper.classList.remove('hidden');
+}
+
+function prepareFeedbackForm() {
+    const wrapper = qs('.feedback-section');
+    const form = qs('#feedback-form');
+    const status = qs('#feedback-status');
+    if (status) {
+        status.textContent = '';
+        status.classList.remove('error');
+    }
+    if (!wrapper || !form) return;
+
+    const connectionInput = form.querySelector('input[name="connection_id"]');
+    if (connectionInput) {
+        const path = (lastResult?.connections?.path || []).join(' → ');
+        connectionInput.value = path;
+    }
+
+    const ratingField = form.querySelector('select[name="rating"]');
+    if (ratingField) {
+        ratingField.value = '4';
+    }
+
+    const commentsField = form.querySelector('textarea[name="comments"]');
+    if (commentsField) {
+        commentsField.value = '';
+    }
+    wrapper.classList.remove('hidden');
+}
+
 function renderResults(data){
+    lastResult = data;
     qs('.empty-state-main')?.classList.add('hidden');
-    
-    qs('.explanation-section')?.classList.remove('hidden');
-    qs('.analogy-section')?.classList.remove('hidden');
-    qs('.bias-review')?.classList.remove('hidden');
-    
+
+    ['.explanation-section', '.analogy-section', '.bias-review', '.review-section', '.fairness-section', '.guidance-section', '.feedback-section']
+        .forEach(sel => qs(sel)?.classList.remove('hidden'));
+
     // Graph
     renderGraph(data.connections);
 
@@ -187,17 +382,11 @@ function renderResults(data){
         analogiesEl.innerHTML = data.analogies || '<p style="color:#999;">No analogies available.</p>';
     }
 
-    // Bias review
-    const biasEl = qs('#bias-output');
-    if (Array.isArray(data.review)) {
-        if (data.review.length) {
-            biasEl.innerHTML = `<ul>${data.review.map(item => `<li>${item}</li>`).join('')}</ul>`;
-        } else {
-            biasEl.innerHTML = '<p>No bias review available.</p>';
-        }
-    } else {
-        biasEl.innerHTML = data.review || '<p>No bias review available.</p>';
-    }
+    renderBiasSection(data.bias_review ?? data.review, data.bias_flag);
+    renderReviewSection(data.content_review);
+    renderFairnessSection(data.fairness);
+    renderGuidanceSection(data.feedback_guidance, data.mitigated, data.mitigation_guidance);
+    prepareFeedbackForm();
 }
 
 
@@ -267,6 +456,8 @@ function renderHistory() {
             if (item) {
                 qs('input[name="concept_a"]').value = item.conceptA;
                 qs('input[name="concept_b"]').value = item.conceptB;
+                lastResult = item.data;
+                lastConceptPair = { conceptA: item.conceptA, conceptB: item.conceptB };
                 renderResults(item.data);
                 qsa('#history-list li').forEach(l => l.style.background = '#f5f5f5');
                 li.style.background = '#e8e8e8';

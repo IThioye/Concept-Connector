@@ -5,9 +5,9 @@ from .logging_config import logger
 
 
 class ExplanationBuilder:
-    async def build(self, connection, level):
+    async def build(self, connection, level, guidance: str = ""):
         sys = EXPLAINER_SYSTEM
-        usr = EXPLAINER_USER.format(connection=connection, level=level)
+        usr = EXPLAINER_USER.format(connection=connection, level=level, guidance=guidance or "Maintain clarity and inclusivity.")
         text = await ollama.agenerate(prompt=usr, system_prompt=sys, temperature=0.6)
         # LOG RAW LLM OUTPUT
         logger.debug("==== RAW EXPLANATION BUILDER OUTPUT ====")

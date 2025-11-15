@@ -5,11 +5,11 @@ from .logging_config import logger
 
 
 class AnalogyGenerator:
-    async def generate(self, best_connection, level):
+    async def generate(self, best_connection, level, guidance: str = ""):
         if not best_connection:
             return []
         sys = ANALOGY_SYSTEM
-        usr = ANALOGY_USER.format(connection=best_connection, level=level)
+        usr = ANALOGY_USER.format(connection=best_connection, level=level, guidance=guidance or "Keep analogies inclusive and age-appropriate.")
         text = await ollama.agenerate(prompt=usr, system_prompt=sys, temperature=0.8)
         logger.debug("==== RAW ANALOGY OUTPUT ====")
         logger.debug(text)
