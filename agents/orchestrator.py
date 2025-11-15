@@ -1,11 +1,12 @@
 import asyncio
+import asyncio
 import copy
+import time
 from collections import OrderedDict
 from typing import Any, Dict, Optional, Tuple
 
 from agents.connection_finder import ConnectionFinder
 from agents.explanation_builder import ExplanationBuilder
-from agents.analogy_generator import AnalogyGenerator
 from agents.bias_monitor import BiasMonitor
 from agents.content_reviewer import ContentReviewer
 from agents.fairness_auditor import FairnessAuditor
@@ -38,7 +39,6 @@ class Orchestrator:
         self.profiles = profiles
         self.connection_finder = ConnectionFinder()
         self.explainer = ExplanationBuilder()
-        self.analogies = AnalogyGenerator()
         self.bias = BiasMonitor()
         self.reviewer = ContentReviewer()
         self.fairness = FairnessAuditor()
@@ -83,28 +83,47 @@ class Orchestrator:
             await asyncio.to_thread(self.memory.save_interaction, session_id, concept_a, concept_b, cached)
             return cached
 
+        timeline = []
+
+        start = time.perf_counter()
         ctx = await self.prepare_context(concept_a, concept_b, level, session_id, profile_overrides=profile_overrides)
+        timeline.append(
+            {
+                "stage": "context",
+                "duration": round(time.perf_counter() - start, 3),
+                "detail": self._summarise_profile(ctx.get("profile"), level),
+            }
+        )
         guidance = ctx.get("feedback_guidance", "")
+        start = time.perf_counter()
         connections = await self.connection_finder.find(concept_a, concept_b, level, ctx)
+        timeline.append(
+            {
+                "stage": "connection",
+                "duration": round(time.perf_counter() - start, 3),
+                "detail": self._summarise_connection(connections, concept_a, concept_b),
+            }
+        )
 
         profile = ctx.get("profile") or {}
-        explanations_task = asyncio.create_task(self.explainer.build(
+        start = time.perf_counter()
+        narrative = await self.explainer.build(
             connections,
             level,
             profile=profile,
             guidance=guidance,
             concept_a=concept_a,
             concept_b=concept_b,
-        ))
-        analogies_task = asyncio.create_task(self.analogies.generate(
-            connections if connections else None,
-            level,
-            profile=profile,
-            guidance=guidance,
-            concept_a=concept_a,
-            concept_b=concept_b,
-        ))
-        explanations, analogies = await asyncio.gather(explanations_task, analogies_task)
+        )
+        explanations = narrative.get("explanation")
+        analogies = narrative.get("analogies", [])
+        timeline.append(
+            {
+                "stage": "narrative",
+                "duration": round(time.perf_counter() - start, 3),
+                "detail": self._summarise_narrative(len(analogies)),
+            }
+        )
 
         bundle = {
             'connections': connections,
@@ -112,6 +131,7 @@ class Orchestrator:
             'analogies': analogies
         }
 
+        start = time.perf_counter()
         bias_review = await self.bias.review(bundle)
         content_review = await self.reviewer.evaluate(
             bundle,
@@ -121,34 +141,43 @@ class Orchestrator:
             concept_b=concept_b,
         )
         fairness_metrics = self.fairness.evaluate(connections or {}, explanations, analogies)
+        timeline.append(
+            {
+                "stage": "review",
+                "duration": round(time.perf_counter() - start, 3),
+                "detail": self._summarise_review(content_review, bias_review),
+            }
+        )
 
         mitigation_triggered = bias_review.get("has_bias") or not content_review.get("level_alignment", True)
         mitigation_guidance = ""
         if mitigation_triggered:
             mitigation_guidance = self._compose_guidance(guidance, content_review, bias_review)
-            explanations, analogies = await asyncio.gather(
-                self.explainer.build(
-                    connections,
-                    level,
-                    profile=profile,
-                    guidance=mitigation_guidance,
-                    concept_a=concept_a,
-                    concept_b=concept_b,
-                ),
-                self.analogies.generate(
-                    connections if connections else None,
-                    level,
-                    profile=profile,
-                    guidance=mitigation_guidance,
-                    concept_a=concept_a,
-                    concept_b=concept_b,
-                ),
+            start = time.perf_counter()
+            narrative = await self.explainer.build(
+                connections,
+                level,
+                profile=profile,
+                guidance=mitigation_guidance,
+                concept_a=concept_a,
+                concept_b=concept_b,
+            )
+            explanations = narrative.get("explanation")
+            analogies = narrative.get("analogies", [])
+            timeline.append(
+                {
+                    "stage": "narrative",
+                    "duration": round(time.perf_counter() - start, 3),
+                    "detail": "Regenerated explanation & analogies with mitigation guidance",
+                }
             )
             bundle = {
                 'connections': connections,
                 'explanations': explanations,
                 'analogies': analogies
             }
+            start = time.perf_counter()
+            bias_review = await self.bias.review(bundle)
             content_review = await self.reviewer.evaluate(
                 bundle,
                 level=level,
@@ -157,6 +186,13 @@ class Orchestrator:
                 concept_b=concept_b,
             )
             fairness_metrics = self.fairness.evaluate(connections or {}, explanations, analogies)
+            timeline.append(
+                {
+                    "stage": "review",
+                    "duration": round(time.perf_counter() - start, 3),
+                    "detail": self._summarise_review(content_review, bias_review, post_mitigation=True),
+                }
+            )
 
         result = {
             "connections": connections,
@@ -167,6 +203,7 @@ class Orchestrator:
             "content_review": content_review,
             "fairness": fairness_metrics,
             "feedback_guidance": guidance,
+            "progress": timeline,
         }
 
         if mitigation_triggered:
@@ -198,3 +235,32 @@ class Orchestrator:
         if bias_review and bias_review.get("raw"):
             suggestions.append("Bias adjustments: " + " | ".join(bias_review["raw"]))
         return " ".join(suggestions) or "Rewrite for clarity and inclusivity."
+
+    @staticmethod
+    def _summarise_profile(profile: Optional[Dict[str, Any]], level: Any) -> str:
+        if not profile:
+            return f"Profile: level={level}, default preferences applied"
+        return (
+            f"Profile gathered: level={level}, edu={profile.get('education_level') or 'n/a'}, "
+            f"system={profile.get('education_system') or 'n/a'}"
+        )
+
+    @staticmethod
+    def _summarise_connection(connection: Optional[Dict[str, Any]], concept_a: str, concept_b: str) -> str:
+        if not connection:
+            return f"No bridge identified between {concept_a} and {concept_b}"
+        path = connection.get("path") if isinstance(connection, dict) else connection
+        if isinstance(path, list):
+            return f"Mapped {len(path)} concepts linking {concept_a} ↔ {concept_b}"
+        return "Connection generated"
+
+    @staticmethod
+    def _summarise_narrative(analogy_count: int) -> str:
+        return f"Produced explanation with {analogy_count} analogies"
+
+    @staticmethod
+    def _summarise_review(content_review: Dict[str, Any], bias_review: Dict[str, Any], *, post_mitigation: bool = False) -> str:
+        status = "post-mitigation" if post_mitigation else "initial"
+        alignment = "aligned" if content_review.get("level_alignment", True) else "needs adjustment"
+        bias_status = "bias flagged" if bias_review.get("has_bias") else "no bias issues"
+        return f"{status} review: {alignment}, {bias_status}"

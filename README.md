@@ -12,8 +12,7 @@ A local multi-agent AI system that discovers and explains connections between co
 | ---------------------- | ----------- | --------------------------------------------------------------- |
 | 🧩 Orchestrator        | Coordinator | Handles queries, manages memory, and synthesizes outputs        |
 | 🔗 Connection Finder   | Discovery   | Finds conceptual links between two ideas using the LLM          |
-| 📘 Explanation Builder | Education   | Generates detailed, level‑adapted explanations                  |
-| 🎨 Analogy Generator   | Creativity  | Creates intuitive analogies from everyday contexts              |
+| 📘 Explanation Builder | Education   | Crafts level‑adapted explanations plus tailored analogies       |
 | 🛡️ Content Reviewer    | Quality     | Verifies level alignment and surfaces actionable refinements    |
 | ⚖️ Bias Monitor        | Fairness    | Detects and flags bias or cultural imbalance in results         |
 | 📊 Fairness Auditor    | Metrics     | Computes transparency metrics (discipline diversity, language)  |
@@ -37,21 +36,20 @@ flowchart TD
     A[Learner submits concepts + level] --> B[Orchestrator retrieves profile & feedback]
     B --> C[Feedback Adapter distills guidance]
     C --> D[Connection Finder drafts cross-disciplinary links]
-    D --> E[Explanation Builder tailors walkthrough]
-    E --> F[Analogy Generator crafts comparisons]
-    F --> G[Bias Monitor performs qualitative check]
-    G --> H[Fairness Auditor computes diversity metrics]
-    H --> I[Content Reviewer validates level alignment]
-    I --> J{Issues detected?}
-    J -->|Yes| K[Mitigation loop: targeted re-prompts with guidance]
-    K --> B
-    J -->|No| L[Results packaged and persisted]
-    L --> M[Frontend renders graph, narrative, metrics]
+    D --> E[Explanation Builder crafts walkthrough + analogies]
+    E --> F[Bias Monitor performs qualitative check]
+    F --> G[Fairness Auditor computes diversity metrics]
+    G --> H[Content Reviewer validates level alignment]
+    H --> I{Issues detected?}
+    I -->|Yes| J[Mitigation loop: targeted re-prompts with guidance]
+    J --> B
+    I -->|No| K[Results packaged and persisted]
+    K --> L[Frontend renders graph, narrative, metrics]
 ```
 
 1. **Context gathering** – The orchestrator loads learner profile traits, prior interactions, and the latest feedback to seed downstream prompts.
 2. **Guidance synthesis** – FeedbackAdapter summarizes the most relevant learner comments so each creative agent receives actionable suggestions.
-3. **Generation cascade** – ConnectionFinder, ExplanationBuilder, and AnalogyGenerator run in sequence, sharing context to maintain coherence.
+3. **Generation cascade** – ConnectionFinder maps the bridge while ExplanationBuilder now returns both the explanation and analogy set in one call to keep guidance consistent.
 4. **Quality and fairness review** – BiasMonitor flags qualitative concerns while FairnessAuditor produces transparency metrics (discipline spread, geographic balance, language variety).
 5. **Content verification** – ContentReviewer checks that explanations match the requested knowledge level and highlights refinement opportunities.
 6. **Mitigation pass** – If reviewer or fairness checks fail, the orchestrator re-prompts the necessary agents with corrective guidance before finalizing the response.
@@ -80,7 +78,6 @@ project/
 │   ├── orchestrator.py
 │   ├── connection_finder.py
 │   ├── explanation_builder.py
-│   ├── analogy_generator.py
 │   ├── bias_monitor.py
 │   ├── content_reviewer.py
 │   ├── fairness_auditor.py
@@ -142,8 +139,7 @@ Then open **[http://localhost:5000](http://localhost:5000)** in your browser.
 2. The system will:
 
    * Find connections.
-   * Build explanations.
-   * Generate analogies.
+   * Build explanations & analogies.
    * Check for bias.
 3. View:
 

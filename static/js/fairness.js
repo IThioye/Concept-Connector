@@ -114,3 +114,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderSummary(data.aggregate || {});
   renderHistory(data.items || []);
 });
+
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState !== 'visible') return;
+  const data = await fetchFairness();
+  renderSummary(data.aggregate || {});
+  renderHistory(data.items || []);
+});

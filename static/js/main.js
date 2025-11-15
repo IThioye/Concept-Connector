@@ -27,14 +27,15 @@ const sessionId = (() => {
 const queryForm = qs('#query-form');
 
 const progressSteps = [
-    'Gathering learner context',
-    'Finding conceptual bridge',
-    'Drafting explanations',
-    'Creating analogies',
-    'Reviewing alignment'
+    { id: 'context', label: 'Gathering learner context' },
+    { id: 'connection', label: 'Finding conceptual bridge' },
+    { id: 'narrative', label: 'Generating explanation & analogies' },
+    { id: 'review', label: 'Reviewing for bias & level fit' }
 ];
-let progressTimer = null;
-let progressIndex = -1;
+const progressStageIndex = progressSteps.reduce((acc, step, idx) => {
+    acc[step.id] = idx;
+    return acc;
+}, {});
 
 const debounce = (fn, wait = 350) => {
     let t;
@@ -164,34 +165,6 @@ function attachProfileInteractions() {
     });
 }
 
-function initialiseProgress() {
-    const container = qs('#progress-steps');
-    if (!container) return;
-    container.innerHTML = progressSteps
-        .map((label, index) => `<li data-step="${index}" class="progress-step">${label}</li>`)
-        .join('');
-    progressIndex = -1;
-}
-
-function advanceProgress() {
-    const container = qs('#progress-steps');
-    if (!container) return;
-    progressIndex += 1;
-    const items = qsa('.progress-step');
-    items.forEach((item, idx) => {
-        if (idx < progressIndex) {
-            item.classList.add('completed');
-            item.classList.remove('active');
-        } else if (idx === progressIndex) {
-            item.classList.add('active');
-        }
-    });
-    if (progressIndex >= items.length - 1 && progressTimer) {
-        clearInterval(progressTimer);
-        progressTimer = null;
-    }
-}
-
 function startProgress() {
     const progressBox = qs('#progress');
     if (!progressBox) return;
@@ -200,19 +173,19 @@ function startProgress() {
     const text = progressBox.querySelector('.progress-text');
     if (text) text.textContent = 'Coordinating agents...';
     initialiseProgress();
-    advanceProgress();
-    progressTimer = setInterval(advanceProgress, 1100);
+    const steps = qsa('.progress-step');
+    steps.forEach((item) => {
+        item.classList.remove('completed');
+        item.classList.remove('active');
+    });
+    if (steps[0]) {
+        steps[0].classList.add('active');
+    }
 }
 
 function finishProgress({ success, message }) {
     const progressBox = qs('#progress');
     if (!progressBox) return;
-    if (progressTimer) {
-        clearInterval(progressTimer);
-        progressTimer = null;
-    }
-
-    qsa('.progress-step').forEach((item) => item.classList.add('completed'));
 
     const text = progressBox.querySelector('.progress-text');
     if (text) {
@@ -224,6 +197,73 @@ function finishProgress({ success, message }) {
         setTimeout(() => progressBox.classList.add('hidden'), 900);
     } else {
         progressBox.classList.add('error');
+    }
+}
+
+function initialiseProgress() {
+    const container = qs('#progress-steps');
+    if (!container) return;
+    container.innerHTML = progressSteps
+        .map((step) => `<li data-step="${step.id}" class="progress-step">${step.label}</li>`)
+        .join('');
+}
+
+async function playProgressTimeline(events = []) {
+    const steps = qsa('.progress-step');
+    if (!steps.length) return;
+
+    steps.forEach((item) => {
+        item.classList.remove('completed');
+        item.classList.remove('active');
+    });
+
+    if (steps[0]) {
+        steps[0].classList.add('active');
+    }
+
+    let currentIndex = 0;
+
+    for (const event of events) {
+        const idx = progressStageIndex[event.stage];
+        if (typeof idx !== 'number') {
+            continue;
+        }
+
+        while (currentIndex < idx) {
+            if (steps[currentIndex]) {
+                steps[currentIndex].classList.remove('active');
+                steps[currentIndex].classList.add('completed');
+            }
+            currentIndex += 1;
+            if (steps[currentIndex]) {
+                steps[currentIndex].classList.add('active');
+            }
+        }
+
+        const text = qs('#progress .progress-text');
+        if (text) {
+            text.textContent = event.detail || progressSteps[idx]?.label || 'Working...';
+        }
+
+        const wait = Math.max(350, Math.min(1800, Math.round(((event.duration || 0.2) + 0.05) * 900)));
+        await new Promise((resolve) => setTimeout(resolve, wait));
+
+        if (steps[idx]) {
+            steps[idx].classList.remove('active');
+            steps[idx].classList.add('completed');
+        }
+
+        currentIndex = idx + 1;
+        if (steps[currentIndex]) {
+            steps[currentIndex].classList.add('active');
+        }
+    }
+
+    for (let i = 0; i < steps.length; i += 1) {
+        if (!steps[i].classList.contains('completed')) {
+            steps[i].classList.remove('active');
+            steps[i].classList.add('completed');
+        }
     }
 }
 
@@ -262,7 +302,7 @@ if (queryForm) {
         updateConceptLabels();
         qs('.empty-state-main')?.classList.remove('hidden');
         qs('.explanation-section')?.classList.add('hidden');
-        qs('.analogy-section')?.classList.add('hidden');
+        qs('#analogies-wrapper')?.classList.add('hidden');
         qs('.feedback-section')?.classList.add('hidden');
         const progressBox = qs('#progress');
         if (progressBox) {
@@ -317,6 +357,7 @@ if (queryForm) {
                 resultsArea.style.transition = 'opacity 0.3s ease';
             }
 
+            await playProgressTimeline(Array.isArray(data.progress) ? data.progress : []);
             finishProgress({ success: true, message: 'Connection complete!' });
 
         } catch (error) {
@@ -371,7 +412,6 @@ if (feedbackForm) {
         }
     });
 }
-
 
 
 /* --------------------------------------------------------------------------
@@ -451,144 +491,11 @@ function prepareFeedbackForm() {
     wrapper.classList.remove('hidden');
 }
 
-function renderBiasSection(items, hasBiasFlag) {
-    const wrapper = qs('.bias-review');
-    const biasEl = qs('#bias-output');
-    if (!biasEl || !wrapper) return;
-
-    if (Array.isArray(items) && items.length) {
-        biasEl.innerHTML = `<ul>${items.map(item => `<li>${item}</li>`).join('')}</ul>`;
-    } else {
-        biasEl.innerHTML = '<p>No bias concerns surfaced.</p>';
-    }
-
-    wrapper.classList.remove('hidden');
-    wrapper.classList.toggle('has-alert', !!hasBiasFlag);
-}
-
-function renderReviewSection(review) {
-    const container = qs('#content-review');
-    const wrapper = qs('.review-section');
-    if (!container || !wrapper) return;
-
-    if (!review) {
-        container.innerHTML = '<p>No reviewer feedback available.</p>';
-        wrapper.classList.remove('hidden');
-        return;
-    }
-
-    const issues = Array.isArray(review.issues) && review.issues.length
-        ? `<ul>${review.issues.map(item => `<li>${item}</li>`).join('')}</ul>`
-        : '<p>No issues flagged.</p>';
-
-    const actions = Array.isArray(review.suggested_actions) && review.suggested_actions.length
-        ? `<ul>${review.suggested_actions.map(item => `<li>${item}</li>`).join('')}</ul>`
-        : '<p>No further actions required.</p>';
-
-    container.innerHTML = `
-        <div class="review-summary">
-            <div><strong>Level alignment:</strong> ${review.level_alignment ? '✅ On target' : '⚠️ Needs adjustment'}</div>
-            <div><strong>Estimated reading level:</strong> ${review.reading_level || 'n/a'}</div>
-            <div><strong>Bias risk:</strong> ${review.bias_risk || 'unknown'}</div>
-        </div>
-        <div class="review-issues">
-            <h4>Issues</h4>
-            ${issues}
-        </div>
-        <div class="review-actions">
-            <h4>Suggested actions</h4>
-            ${actions}
-        </div>
-    `;
-
-    wrapper.classList.remove('hidden');
-}
-
-function renderFairnessSection(fairness) {
-    const container = qs('#fairness-metrics');
-    const wrapper = qs('.fairness-section');
-    if (!container || !wrapper) return;
-
-    if (!fairness || !Array.isArray(fairness.metrics)) {
-        container.innerHTML = '<p>Fairness metrics unavailable.</p>';
-        wrapper.classList.remove('hidden');
-        return;
-    }
-
-    const rows = fairness.metrics.map(metric => {
-        const value = Number(metric.value) || 0;
-        const pct = Math.max(0, Math.min(100, Math.round(value * 100)));
-        return `
-            <li class="fairness-metric">
-                <div class="metric-header">
-                    <span class="metric-name">${metric.label}</span>
-                    <span class="metric-value">${pct}%</span>
-                </div>
-                <div class="metric-bar">
-                    <span class="metric-bar-fill" style="width:${pct}%"></span>
-                </div>
-                <p class="metric-detail">${metric.detail || ''}</p>
-            </li>
-        `;
-    }).join('');
-
-    container.innerHTML = `
-        <div class="fairness-overall">Overall fairness score: <strong>${fairness.overall ?? 'n/a'}</strong></div>
-        <ul class="fairness-list">${rows}</ul>
-    `;
-
-    wrapper.classList.remove('hidden');
-}
-
-function renderGuidanceSection(guidance, mitigated, mitigationText) {
-    const wrapper = qs('.guidance-section');
-    const textEl = qs('#guidance-text');
-    if (!wrapper || !textEl) return;
-
-    const applied = guidance && guidance.trim().length
-        ? guidance
-        : 'No personalised guidance applied.';
-    const mitigationNote = mitigated && mitigationText
-        ? `<div class="mitigation-note"><strong>Mitigation applied:</strong> ${mitigationText}</div>`
-        : '';
-
-    textEl.innerHTML = `<p>${applied}</p>${mitigationNote}`;
-    wrapper.classList.remove('hidden');
-}
-
-function prepareFeedbackForm() {
-    const wrapper = qs('.feedback-section');
-    const form = qs('#feedback-form');
-    const status = qs('#feedback-status');
-    if (status) {
-        status.textContent = '';
-        status.classList.remove('error');
-    }
-    if (!wrapper || !form) return;
-
-    const connectionInput = form.querySelector('input[name="connection_id"]');
-    if (connectionInput) {
-        const path = (lastResult?.connections?.path || []).join(' → ');
-        connectionInput.value = path;
-    }
-
-    const ratingField = form.querySelector('select[name="rating"]');
-    if (ratingField) {
-        ratingField.value = '4';
-    }
-
-    const commentsField = form.querySelector('textarea[name="comments"]');
-    if (commentsField) {
-        commentsField.value = '';
-    }
-    wrapper.classList.remove('hidden');
-}
-
 function renderResults(data){
     lastResult = data;
     qs('.empty-state-main')?.classList.add('hidden');
 
-    ['.explanation-section', '.analogy-section', '.feedback-section']
+    ['.explanation-section', '.feedback-section']
         .forEach(sel => qs(sel)?.classList.remove('hidden'));
 
     // Graph
@@ -611,15 +518,24 @@ function renderResults(data){
     }
 
     // Analogies
+    const analogiesWrap = qs('#analogies-wrapper');
     const analogiesEl = qs('#analogies');
-    if (Array.isArray(data.analogies)) {
-        if (data.analogies.length) {
-            analogiesEl.innerHTML = `<ul>${data.analogies.map(item => `<li>${item}</li>`).join('')}</ul>`;
+    if (analogiesEl) {
+        if (Array.isArray(data.analogies)) {
+            if (data.analogies.length) {
+                analogiesEl.innerHTML = `<ul>${data.analogies.map((item) => `<li>${item}</li>`).join('')}</ul>`;
+                analogiesWrap?.classList.remove('hidden');
+            } else {
+                analogiesEl.innerHTML = '<p style="color:#999;">No analogies available.</p>';
+                analogiesWrap?.classList.remove('hidden');
+            }
+        } else if (typeof data.analogies === 'string' && data.analogies.trim()) {
+            analogiesEl.innerHTML = data.analogies;
+            analogiesWrap?.classList.remove('hidden');
         } else {
             analogiesEl.innerHTML = '<p style="color:#999;">No analogies available.</p>';
+            analogiesWrap?.classList.remove('hidden');
         }
-    } else {
-        analogiesEl.innerHTML = data.analogies || '<p style="color:#999;">No analogies available.</p>';
     }
 
     prepareFeedbackForm();
