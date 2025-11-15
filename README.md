@@ -30,6 +30,33 @@ A local multi-agent AI system that discovers and explains connections between co
 * Modular agent classes and centralized prompt templates.
 * Reviewer + fairness agents trigger automatic mitigation passes when level or bias issues are detected.
 
+### 🔄 System Workflow
+
+```mermaid
+flowchart TD
+    A[Learner submits concepts + level] --> B[Orchestrator retrieves profile & feedback]
+    B --> C[Feedback Adapter distills guidance]
+    C --> D[Connection Finder drafts cross-disciplinary links]
+    D --> E[Explanation Builder tailors walkthrough]
+    E --> F[Analogy Generator crafts comparisons]
+    F --> G[Bias Monitor performs qualitative check]
+    G --> H[Fairness Auditor computes diversity metrics]
+    H --> I[Content Reviewer validates level alignment]
+    I --> J{Issues detected?}
+    J -->|Yes| K[Mitigation loop: targeted re-prompts with guidance]
+    K --> B
+    J -->|No| L[Results packaged and persisted]
+    L --> M[Frontend renders graph, narrative, metrics]
+```
+
+1. **Context gathering** – The orchestrator loads learner profile traits, prior interactions, and the latest feedback to seed downstream prompts.
+2. **Guidance synthesis** – FeedbackAdapter summarizes the most relevant learner comments so each creative agent receives actionable suggestions.
+3. **Generation cascade** – ConnectionFinder, ExplanationBuilder, and AnalogyGenerator run in sequence, sharing context to maintain coherence.
+4. **Quality and fairness review** – BiasMonitor flags qualitative concerns while FairnessAuditor produces transparency metrics (discipline spread, geographic balance, language variety).
+5. **Content verification** – ContentReviewer checks that explanations match the requested knowledge level and highlights refinement opportunities.
+6. **Mitigation pass** – If reviewer or fairness checks fail, the orchestrator re-prompts the necessary agents with corrective guidance before finalizing the response.
+7. **Delivery & persistence** – Final artifacts, metrics, and applied mitigations are stored via the memory service and surfaced in the UI alongside a feedback form for continuous improvement.
+
 ### Frontend (Vanilla JS)
 
 * Responsive **two-column layout**: concept input on the left, results on the right.
