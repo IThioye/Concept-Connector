@@ -3,7 +3,7 @@ from typing import Any, Dict
 
 from services.ollama_service import ollama
 from prompts.templates import EXPLAINER_SYSTEM, EXPLAINER_USER
-from services.text_formatter import format_llm_output
+from services.text_formatter import format_llm_output, extract_json
 from .logging_config import logger
 
 
@@ -43,10 +43,10 @@ class ExplanationBuilder:
                 candidate = raw_text
 
         if isinstance(candidate, str):
-            candidate = candidate.strip()
             try:
-                return json.loads(candidate)
-            except json.JSONDecodeError:
+                json_candidate = extract_json(candidate)
+                return json_candidate
+            except Exception:
                 logger.warning("Explanation builder returned non-JSON payload; falling back to text")
                 return {"explanation_markdown": candidate, "analogies": []}
 

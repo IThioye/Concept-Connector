@@ -1,6 +1,44 @@
 import markdown
 import re
 from typing import List, Union
+import json
+
+
+def extract_json(text):
+    """Extract the first JSON object from any LLM output using brace counting."""
+
+    if not text or not isinstance(text, str):
+        return None
+
+    # Remove code fences: ```json  ...  ```
+    text = re.sub(r"```json", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"```", "", text)
+
+    text = text.strip()
+
+    # Find first '{'
+    start = text.find("{")
+    if start == -1:
+        return None
+
+    # Brace counter to find matching closing '}'
+    brace_count = 0
+    for i in range(start, len(text)):
+        if text[i] == "{":
+            brace_count += 1
+        elif text[i] == "}":
+            brace_count -= 1
+            if brace_count == 0:
+                json_str = text[start:i+1]
+                try:
+                    return json.loads(json_str)
+                except Exception as e:
+                    print("JSON parsing failed:", e)
+                    print("Extracted JSON string:", json_str)
+                    return None
+
+    # No matching closing brace
+    return None
 
 
 def _to_plain_list(html: str) -> List[str]:
