@@ -33,31 +33,37 @@ A local multi-agent AI system that discovers and explains connections between co
 
 ```mermaid
 flowchart TD
-    A[Learner submits concepts + level] --> B(Orchestrator retrieves profile & history)
-    B --> C[Feedback Adapter distills guidance]
-    C --> D[Connection Finder drafts cross-disciplinary links]
-    D --> E[Explanation Builder crafts walkthrough + analogies]
+    subgraph InitializationConn["Initialization & Connection"]
+        A[Learner submits concepts + level] --> B(Orchestrator retrieves profile & history)
+        B --> C[Feedback Adapter distills guidance]
+        C --> D[Connection Finder drafts cross-disciplinary links]
+        D --> E[Explanation Builder crafts walkthrough + analogies]
+    end
 
-    %% Parallel Review Phase (Implemented via asyncio.gather)
-    E --> F{Bias Monitor: Qualitative Check}
-    E --> G{Content Reviewer: Level Alignment}
-    E --> H{Fairness Auditor: Compute Metrics}
-    
-    F & G & H --> I{All Reviews Complete: Issues Detected?}
-    
-    %% Mitigation Loop Check
-    I -->|Yes (Misaligned or Biased)| J(Mitigation: Compose New Guidance)
-    J --> K{Max Retries Exceeded (Orchestrator.MAX_RETRIES)?}
+    subgraph InitialReview["Initial Review (Parallel Execution)"]
+        E --> F{Bias Monitor<br/>(Qualitative Check)}
+        E --> G{Content Reviewer<br/>(Level Alignment)}
+        E --> H{Fairness Auditor<br/>(Compute Diversity Metrics)}
+    end
 
-    %% Conditional Flow
-    K -->|No| E
-    I -->|No (Aligned & No Bias)| L[Results Packaged and Persisted]
-    K -->|Yes| L
-    
-    L --> M[Frontend renders graph, narrative, metrics]
+    I{F, G, H Complete:<br/>Issues Detected?} -->|No (Aligned & No Bias)| K[Results Packaged and Persisted]
+    I -->|Yes (Misaligned or Biased)| J(Mitigation Loop:<br/>Compose Guidance & Check Retries)
+    J -->|Guidance| E
 
-classDef review fill:#c7f3c7,stroke:#090
-class F,G,H review
+    subgraph MitigationCheck["Mitigation Check"]
+        J --> L{Max Retries Exceeded?}
+        L -->|Yes| K
+        L -->|No| E
+    end
+
+    K --> M[Frontend renders graph,<br/>narrative, metrics]
+
+    style F fill:#bfe,stroke:#333,stroke-width:2px
+    style G fill:#bfe,stroke:#333,stroke-width:2px
+    style H fill:#bfe,stroke:#333,stroke-width:2px
+    style I fill:#e1f5fe,stroke:#333,stroke-width:2px
+    style L fill:#e1f5fe,stroke:#333,stroke-width:2px
+
 ```
 
 1. **Context gathering** – The orchestrator loads learner profile traits, prior interactions, and the latest feedback to seed downstream prompts.
