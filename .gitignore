@@ -4,3 +4,4 @@ agents/__pycache__
 prompts/__pycache__
 services/__pycache__
 logs
+database/
