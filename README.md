@@ -33,34 +33,31 @@ A local multi-agent AI system that discovers and explains connections between co
 
 ```mermaid
 flowchart TD
-    subgraph Initialization & Connection
-        A[Learner submits concepts + level] --> B(Orchestrator retrieves profile & history)
-        B --> C[Feedback Adapter distills guidance]
-        C --> D[Connection Finder drafts cross-disciplinary links]
-        D --> E[Explanation Builder crafts walkthrough + analogies]
-    end
+    A[Learner submits concepts + level] --> B(Orchestrator retrieves profile & history)
+    B --> C[Feedback Adapter distills guidance]
+    C --> D[Connection Finder drafts cross-disciplinary links]
+    D --> E[Explanation Builder crafts walkthrough + analogies]
 
-    subgraph Initial Review (Parallel Execution)
-        E --> F{Bias Monitor (Qualitative Check)}
-        E --> G{Content Reviewer (Level Alignment)}
-        E --> H{Fairness Auditor (Compute Diversity Metrics)}
-    end
+    %% Parallel Review Phase (Implemented via asyncio.gather)
+    E --> F{Bias Monitor: Qualitative Check}
+    E --> G{Content Reviewer: Level Alignment}
+    E --> H{Fairness Auditor: Compute Metrics}
+    
+    F & G & H --> I{All Reviews Complete: Issues Detected?}
+    
+    %% Mitigation Loop Check
+    I -->|Yes (Misaligned or Biased)| J(Mitigation: Compose New Guidance)
+    J --> K{Max Retries Exceeded (Orchestrator.MAX_RETRIES)?}
 
-    I{F, G, H Complete: Issues Detected?} -->|No (Aligned & No Bias)| K[Results Packaged and Persisted]
+    %% Conditional Flow
+    K -->|No| E
+    I -->|No (Aligned & No Bias)| L[Results Packaged and Persisted]
+    K -->|Yes| L
+    
+    L --> M[Frontend renders graph, narrative, metrics]
 
-    I -->|Yes (Misaligned or Biased)| J(Mitigation Loop: Compose Guidance & Check Retries)
-    J -->|Guidance| E
-
-    subgraph Mitigation Check
-        J --> L{Max Retries Exceeded?}
-        L -->|Yes| K
-        L -->|No| E
-    end
-
-    K --> M[Frontend renders graph, narrative, metrics]
-
-classDef parallel fill:#bfe,stroke:#333
-class F,G,H parallel
+classDef review fill:#c7f3c7,stroke:#090
+class F,G,H review
 ```
 
 1. **Context gathering** – The orchestrator loads learner profile traits, prior interactions, and the latest feedback to seed downstream prompts.
