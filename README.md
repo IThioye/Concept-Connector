@@ -39,28 +39,26 @@ flowchart TD
         C --> D[Connection Finder drafts cross-disciplinary links]
         D --> E[Explanation Builder crafts walkthrough and analogies]
     end
-
     subgraph Initial_Review_Parallel
         E --> F{Bias Monitor qualitative check}
         E --> G{Content Reviewer level alignment}
         E --> H{Fairness Auditor diversity metrics}
+        F --> I{All checks complete, issues detected?}
+        G --> I
+        H --> I
     end
-
-    I{F, G, H complete, issues detected?} -->|No (aligned and no bias)| K[Results packaged and persisted]
-    I -->|Yes (misaligned or biased)| J(Mitigation loop compose guidance and check retries)
+    I -->|No - aligned and no bias| K[Results packaged and persisted]
+    I -->|Yes - misaligned or biased| J(Mitigation loop compose guidance and check retries)
     J -->|Guidance| E
-
     subgraph Mitigation_Check
         J --> L{Max retries exceeded?}
         L -->|Yes| K
         L -->|No| E
     end
-
     K --> M[Frontend renders graph, narrative, metrics]
-
-    style F fill:#bfe,stroke:#333,stroke-width:2px
-    style G fill:#bfe,stroke:#333,stroke-width:2px
-    style H fill:#bfe,stroke:#333,stroke-width:2px
+    style F fill:#000,stroke:#333,stroke-width:2px,color:#fff
+    style G fill:#000,stroke:#333,stroke-width:2px,color:#fff
+    style H fill:#000,stroke:#333,stroke-width:2px,color:#fff
 
 
 ```
