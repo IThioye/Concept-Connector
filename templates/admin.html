@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Concept Connector</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: #f5f7fa;
+            color: #333;
+        }
+
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 1.5rem 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            transition: transform 0.2s;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        }
+
+        .metric-card h3 {
+            font-size: 0.875rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 0.25rem;
+        }
+
+        .metric-label {
+            font-size: 0.875rem;
+            color: #999;
+        }
+
+        .section {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 2rem;
+        }
+
+        .section h2 {
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            color: #2c3e50;
+        }
+
+        .chart-container {
+            min-height: 300px;
+            margin-top: 1rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        th {
+            text-align: left;
+            padding: 0.75rem 1rem;
+            font-weight: 600;
+            color: #495057;
+            font-size: 0.875rem;
+        }
+
+        td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 0.9rem;
+        }
+
+        tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-danger {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #999;
+        }
+
+        .refresh-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: background 0.2s;
+        }
+
+        .refresh-btn:hover {
+            background: #2980b9;
+        }
+
+        .stats-row {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .stat-item {
+            flex: 1;
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+        }
+
+        .stat-item strong {
+            display: block;
+            font-size: 1.25rem;
+            color: #2c3e50;
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-item span {
+            font-size: 0.875rem;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎛️ Admin Dashboard - Concept Connector</h1>
+    </div>
+
+    <div class="container">
+        <!-- Key Metrics -->
+        <div class="metrics-grid" id="key-metrics">
+            <div class="metric-card">
+                <h3>Total Queries</h3>
+                <div class="metric-value" id="total-queries">-</div>
+                <div class="metric-label">All time</div>
+            </div>
+            <div class="metric-card">
+                <h3>Unique Sessions</h3>
+                <div class="metric-value" id="unique-sessions">-</div>
+                <div class="metric-label">Active users</div>
+            </div>
+            <div class="metric-card">
+                <h3>24h Activity</h3>
+                <div class="metric-value" id="queries-24h">-</div>
+                <div class="metric-label">Recent queries</div>
+            </div>
+            <div class="metric-card">
+                <h3>Avg Rating</h3>
+                <div class="metric-value" id="avg-rating">-</div>
+                <div class="metric-label">User satisfaction</div>
+            </div>
+            <div class="metric-card">
+                <h3>Cache Hit Rate</h3>
+                <div class="metric-value" id="cache-hit-rate">-</div>
+                <div class="metric-label">Performance</div>
+            </div>
+            <div class="metric-card">
+                <h3>Avg Retries</h3>
+                <div class="metric-value" id="avg-retries">-</div>
+                <div class="metric-label">Mitigation loops</div>
+            </div>
+        </div>
+
+        <!-- Agent Performance -->
+        <div class="section">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h2>🤖 Agent Performance</h2>
+                <button class="refresh-btn" onclick="loadMetrics()">Refresh</button>
+            </div>
+            <div class="stats-row" id="agent-stats">
+                <div class="stat-item">
+                    <strong id="bias-flags">-</strong>
+                    <span>Bias Flags</span>
+                </div>
+                <div class="stat-item">
+                    <strong id="mitigations">-</strong>
+                    <span>Mitigations Triggered</span>
+                </div>
+                <div class="stat-item">
+                    <strong id="mitigation-success">-</strong>
+                    <span>Mitigation Success Rate</span>
+                </div>
+            </div>
+            
+            <h3 style="margin-top: 2rem; margin-bottom: 1rem;">Average Stage Durations</h3>
+            <div id="stage-durations" class="stats-row"></div>
+        </div>
+
+        <!-- Popular Concepts -->
+        <div class="section">
+            <h2>🔥 Popular Concepts</h2>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                <div>
+                    <h3 style="margin-bottom: 1rem;">Most Queried (Concept A)</h3>
+                    <table id="popular-concepts-a">
+                        <thead>
+                            <tr>
+                                <th>Concept</th>
+                                <th>Count</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="2" class="loading">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div>
+                    <h3 style="margin-bottom: 1rem;">Most Queried (Concept B)</h3>
+                    <table id="popular-concepts-b">
+                        <thead>
+                            <tr>
+                                <th>Concept</th>
+                                <th>Count</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="2" class="loading">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Sessions -->
+        <div class="section">
+            <h2>👥 Recent Sessions</h2>
+            <table id="recent-sessions">
+                <thead>
+                    <tr>
+                        <th>Session ID</th>
+                        <th>Queries</th>
+                        <th>Feedback</th>
+                        <th>Avg Rating</th>
+                        <th>Last Seen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td colspan="5" class="loading">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Replace with your actual admin token
+        const ADMIN_TOKEN = 'your-secret-token';
+
+        async function fetchWithAuth(url) {
+            const response = await fetch(url, {
+                headers: {
+                    'X-Admin-Token': ADMIN_TOKEN
+                }
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+        }
+
+        async function loadMetrics() {
+            try {
+                const metrics = await fetchWithAuth('/api/metrics');
+                
+                // Key metrics
+                document.getElementById('total-queries').textContent = metrics.database.total_queries.toLocaleString();
+                document.getElementById('unique-sessions').textContent = metrics.database.unique_sessions.toLocaleString();
+                document.getElementById('queries-24h').textContent = metrics.database.queries_last_24h.toLocaleString();
+                document.getElementById('avg-rating').textContent = metrics.database.avg_user_rating || 'N/A';
+                document.getElementById('cache-hit-rate').textContent = (metrics.cache_hit_rate * 100).toFixed(1) + '%';
+                document.getElementById('avg-retries').textContent = metrics.avg_retries.toFixed(2);
+                
+                // Agent stats
+                document.getElementById('bias-flags').textContent = metrics.database.bias_flags;
+                document.getElementById('mitigations').textContent = metrics.database.mitigations_triggered;
+                document.getElementById('mitigation-success').textContent = (metrics.mitigation_success_rate * 100).toFixed(1) + '%';
+                
+                // Stage durations
+                const stageDurationsDiv = document.getElementById('stage-durations');
+                stageDurationsDiv.innerHTML = '';
+                for (const [stage, duration] of Object.entries(metrics.avg_stage_durations)) {
+                    const item = document.createElement('div');
+                    item.className = 'stat-item';
+                    item.innerHTML = `<strong>${duration}s</strong><span>${stage}</span>`;
+                    stageDurationsDiv.appendChild(item);
+                }
+                
+            } catch (error) {
+                console.error('Failed to load metrics:', error);
+            }
+        }
+
+        async function loadPopularConcepts() {
+            try {
+                const data = await fetchWithAuth('/api/metrics/popular-concepts?limit=10');
+                
+                // Concept A
+                const tableA = document.getElementById('popular-concepts-a').getElementsByTagName('tbody')[0];
+                tableA.innerHTML = data.concept_a.map(item => `
+                    <tr>
+                        <td>${item.concept}</td>
+                        <td><span class="badge badge-success">${item.count}</span></td>
+                    </tr>
+                `).join('');
+                
+                // Concept B
+                const tableB = document.getElementById('popular-concepts-b').getElementsByTagName('tbody')[0];
+                tableB.innerHTML = data.concept_b.map(item => `
+                    <tr>
+                        <td>${item.concept}</td>
+                        <td><span class="badge badge-success">${item.count}</span></td>
+                    </tr>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Failed to load popular concepts:', error);
+            }
+        }
+
+        async function loadRecentSessions() {
+            try {
+                const data = await fetchWithAuth('/api/metrics/sessions?limit=15');
+                
+                const table = document.getElementById('recent-sessions').getElementsByTagName('tbody')[0];
+                table.innerHTML = data.sessions.map(session => `
+                    <tr>
+                        <td><code>${session.session_id.substring(0, 16)}...</code></td>
+                        <td>${session.query_count}</td>
+                        <td>${session.feedback_count}</td>
+                        <td>${session.avg_rating ? session.avg_rating.toFixed(2) : 'N/A'}</td>
+                        <td>${new Date(session.last_seen).toLocaleString()}</td>
+                    </tr>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Failed to load sessions:', error);
+            }
+        }
+
+        // Load all data on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadMetrics();
+            loadPopularConcepts();
+            loadRecentSessions();
+        });
+
+        // Auto-refresh every 30 seconds
+        setInterval(() => {
+            loadMetrics();
+            loadRecentSessions();
+        }, 30000);
+    </script>
+</body>
+</html>
