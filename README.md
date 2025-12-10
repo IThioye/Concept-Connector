@@ -33,36 +33,35 @@ A local multi-agent AI system that discovers and explains connections between co
 
 ```mermaid
 flowchart TD
-    subgraph InitializationConn["Initialization & Connection"]
-        A[Learner submits concepts + level] --> B(Orchestrator retrieves profile & history)
+    subgraph Initialization_Connection
+        A[Learner submits concepts + level] --> B(Orchestrator retrieves profile and history)
         B --> C[Feedback Adapter distills guidance]
         C --> D[Connection Finder drafts cross-disciplinary links]
-        D --> E[Explanation Builder crafts walkthrough + analogies]
+        D --> E[Explanation Builder crafts walkthrough and analogies]
     end
 
-    subgraph InitialReview["Initial Review (Parallel Execution)"]
-        E --> F{Bias Monitor<br/>(Qualitative Check)}
-        E --> G{Content Reviewer<br/>(Level Alignment)}
-        E --> H{Fairness Auditor<br/>(Compute Diversity Metrics)}
+    subgraph Initial_Review_Parallel
+        E --> F{Bias Monitor qualitative check}
+        E --> G{Content Reviewer level alignment}
+        E --> H{Fairness Auditor diversity metrics}
     end
 
-    I{F, G, H Complete:<br/>Issues Detected?} -->|No (Aligned & No Bias)| K[Results Packaged and Persisted]
-    I -->|Yes (Misaligned or Biased)| J(Mitigation Loop:<br/>Compose Guidance & Check Retries)
+    I{F, G, H complete, issues detected?} -->|No (aligned and no bias)| K[Results packaged and persisted]
+    I -->|Yes (misaligned or biased)| J(Mitigation loop compose guidance and check retries)
     J -->|Guidance| E
 
-    subgraph MitigationCheck["Mitigation Check"]
-        J --> L{Max Retries Exceeded?}
+    subgraph Mitigation_Check
+        J --> L{Max retries exceeded?}
         L -->|Yes| K
         L -->|No| E
     end
 
-    K --> M[Frontend renders graph,<br/>narrative, metrics]
+    K --> M[Frontend renders graph, narrative, metrics]
 
     style F fill:#bfe,stroke:#333,stroke-width:2px
     style G fill:#bfe,stroke:#333,stroke-width:2px
     style H fill:#bfe,stroke:#333,stroke-width:2px
-    style I fill:#e1f5fe,stroke:#333,stroke-width:2px
-    style L fill:#e1f5fe,stroke:#333,stroke-width:2px
+
 
 ```
 
