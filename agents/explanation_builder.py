@@ -13,47 +13,29 @@ class ExplanationBuilder:
     @staticmethod
     def _extract_payload(raw_text: str) -> Dict[str, Any]:
         """Handle Ollama's wrapper JSON and ensure we end up with a dict."""
-
+        
+        # 1. IMMEDIATE FIX: Ensure we never return None
         if not raw_text:
             return {}
 
         candidate: Any = raw_text
 
-        if isinstance(raw_text, dict):
-            candidate = raw_text.get("response", "")
-            if isinstance(candidate, str):
-                candidate = candidate.strip()
-                try:
-                    return json.loads(candidate)
-                except json.JSONDecodeError:
-                    logger.warning("Explanation builder response field was not JSON; using raw text")
-                    return {"explanation_markdown": candidate, "analogies": []}
-            if "explanation_markdown" in raw_text or "analogies" in raw_text:
-                return raw_text
-            return {}
+        # Use the robust extractor from ConnectionFinder
+        parsed = extract_json(raw_text)
+        if parsed:
+            # Check for Ollama's inner 'response' field if needed
+            if isinstance(parsed, dict) and "response" in parsed:
+                # If the inner response is a string, try to parse it too
+                inner_text = parsed["response"]
+                inner_parsed = extract_json(inner_text)
+                return inner_parsed if inner_parsed else {"explanation_markdown": inner_text, "analogies": []}
+            
+            # If it was a clean JSON object, return it
+            return parsed
 
-        if isinstance(raw_text, str):
-            try:
-                outer = json.loads(raw_text)
-                if isinstance(outer, dict) and "response" in outer:
-                    candidate = outer.get("response", "")
-                else:
-                    candidate = outer
-            except json.JSONDecodeError:
-                candidate = raw_text
-
-        if isinstance(candidate, str):
-            try:
-                json_candidate = extract_json(candidate)
-                return json_candidate
-            except Exception:
-                logger.warning("Explanation builder returned non-JSON payload; falling back to text")
-                return {"explanation_markdown": candidate, "analogies": []}
-
-        if isinstance(candidate, dict):
-            return candidate
-
-        return {}
+        # 2. Fallback: If robust extraction failed, assume the text is the explanation
+        logger.warning("Explanation builder failed to return structured JSON. Falling back to text.")
+        return {"explanation_markdown": raw_text, "analogies": []}
 
     @staticmethod
     def _normalise_analogies(raw_analogies: Any) -> list[str]:

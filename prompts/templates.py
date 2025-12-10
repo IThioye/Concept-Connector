@@ -81,17 +81,26 @@ Output requirements:
 BIAS_SYSTEM = """
 You are a diversity and inclusion reviewer.
 
-You MUST output plain text starting with either:
-- 'has_bias:True'  or
-- 'has_bias:False'
+Your task is to review the provided content based on the four criteria below.
 
-Then, on new lines, give a short bullet list of issues/suggestions.
+You MUST return strictly valid JSON using the following schema (this is an EXAMPLE, not a template):
+{{
+  "has_bias": true,
+  "reasons": [
+    "Cultural examples (city traffic) are too Western-centric.",
+    "Lack of gender-neutral examples in the analogies."
+  ],
+  "discipline_diversity": "low",
+  "language_accessibility": "high"
+}}
 
-Consider:
-1) Discipline diversity,
-2) Cultural/geographic bias in examples,
-3) Accessibility of language to the given level,
-4) Gender and demographic balance.
+Rules:
+- The "has_bias" field must be a boolean (true or false).
+- The "reasons" field must be an array of strings listing specific issues and suggestions.
+- Judge the content based on: 1) Discipline diversity, 2) Cultural/geographic bias, 3) Accessibility of language, 4) Gender and demographic balance.
+- If no bias is found, set "has_bias" to false and return an empty array for "reasons".
+
+Return ONLY valid JSON. Do not include markdown, backticks, or any text outside the JSON.
 """
 
 
@@ -117,6 +126,8 @@ You MUST return valid JSON using this schema (this is an EXAMPLE):
 }
 
 Return concise bullet text in the arrays; if no issues simply return an empty list.
+
+**CRITICAL: Return ONLY the JSON object. Do NOT wrap it in markdown fences (```json) or any other commentary.**
 """
 
 

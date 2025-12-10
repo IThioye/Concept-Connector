@@ -1,5 +1,4 @@
 import asyncio
-import asyncio
 import copy
 import time
 from collections import OrderedDict
@@ -34,6 +33,9 @@ class _LRUCache:
 
 
 class Orchestrator:
+    # --- MODIFICATION 1: Added MAX_RETRIES for robustness ---
+    MAX_RETRIES = 1 
+
     def __init__(self, memory, profiles, cache_size: int = 32):
         self.memory = memory
         self.profiles = profiles
@@ -77,7 +79,11 @@ class Orchestrator:
         }
 
     async def process_query_async(self, concept_a, concept_b, level, session_id=None, profile_overrides=None):
-        cache_key = (concept_a.lower(), concept_b.lower(), level.lower() if isinstance(level, str) else level)
+        # --- MODIFICATION 2: Robust Cache Key ---
+        level_key = level.lower() if isinstance(level, str) else str(level).lower()
+        cache_key = (concept_a.lower(), concept_b.lower(), level_key)
+        # ----------------------------------------
+        
         cached = self._cache.get(cache_key)
         if cached:
             await asyncio.to_thread(self.memory.save_interaction, session_id, concept_a, concept_b, cached)
@@ -95,6 +101,7 @@ class Orchestrator:
             }
         )
         guidance = ctx.get("feedback_guidance", "")
+        
         start = time.perf_counter()
         connections = await self.connection_finder.find(concept_a, concept_b, level, ctx)
         timeline.append(
@@ -115,6 +122,9 @@ class Orchestrator:
             concept_a=concept_a,
             concept_b=concept_b,
         )
+        # Added safety check for NoneType error
+        narrative = narrative or {} 
+        
         explanations = narrative.get("explanation")
         analogies = narrative.get("analogies", [])
         timeline.append(
@@ -131,15 +141,21 @@ class Orchestrator:
             'analogies': analogies
         }
 
+        # --- MODIFICATION 3: Parallel Execution (Initial Pass) ---
         start = time.perf_counter()
-        bias_review = await self.bias.review(bundle)
-        content_review = await self.reviewer.evaluate(
+        bias_review_task = self.bias.review(bundle)
+        content_review_task = self.reviewer.evaluate(
             bundle,
             level=level,
             profile=profile,
             concept_a=concept_a,
             concept_b=concept_b,
         )
+        
+        # Execute reviews concurrently
+        bias_review, content_review = await asyncio.gather(bias_review_task, content_review_task)
+        # ----------------------------------------------------------
+        
         fairness_metrics = self.fairness.evaluate(connections or {}, explanations, analogies)
         timeline.append(
             {
@@ -151,8 +167,26 @@ class Orchestrator:
 
         mitigation_triggered = bias_review.get("has_bias") or not content_review.get("level_alignment", True)
         mitigation_guidance = ""
-        if mitigation_triggered:
+        retry_count = 0  # Initialize retry counter
+        
+        # Original logic was inside a single 'if', now structured as a 'while' for the loop
+        while mitigation_triggered:
+            # --- MODIFICATION 4: Max Retry Check (Robustness) ---
+            if retry_count >= self.MAX_RETRIES:
+                timeline.append(
+                    {
+                        "stage": "mitigation_aborted",
+                        "duration": 0.0,
+                        "detail": f"Mitigation aborted after {self.MAX_RETRIES} retry. Content remains unaligned or biased.",
+                    }
+                )
+                break  # Exit the loop if max retries reached
+            # ---------------------------------------------------
+            
+            retry_count += 1
+            
             mitigation_guidance = self._compose_guidance(guidance, content_review, bias_review)
+            
             start = time.perf_counter()
             narrative = await self.explainer.build(
                 connections,
@@ -162,29 +196,40 @@ class Orchestrator:
                 concept_a=concept_a,
                 concept_b=concept_b,
             )
+            # Added safety check for NoneType error
+            narrative = narrative or {}
+            
             explanations = narrative.get("explanation")
             analogies = narrative.get("analogies", [])
             timeline.append(
                 {
                     "stage": "narrative",
                     "duration": round(time.perf_counter() - start, 3),
-                    "detail": "Regenerated explanation & analogies with mitigation guidance",
+                    "detail": f"Regenerated explanation (Retry {retry_count}/{self.MAX_RETRIES})",
                 }
             )
+            
             bundle = {
                 'connections': connections,
                 'explanations': explanations,
                 'analogies': analogies
             }
+            
+            # --- MODIFICATION 5: Parallel Execution (Mitigation Pass) ---
             start = time.perf_counter()
-            bias_review = await self.bias.review(bundle)
-            content_review = await self.reviewer.evaluate(
+            bias_review_task = self.bias.review(bundle)
+            content_review_task = self.reviewer.evaluate(
                 bundle,
                 level=level,
                 profile=profile,
                 concept_a=concept_a,
                 concept_b=concept_b,
             )
+            
+            # Execute reviews concurrently
+            bias_review, content_review = await asyncio.gather(bias_review_task, content_review_task)
+            # ------------------------------------------------------------
+            
             fairness_metrics = self.fairness.evaluate(connections or {}, explanations, analogies)
             timeline.append(
                 {
@@ -193,6 +238,10 @@ class Orchestrator:
                     "detail": self._summarise_review(content_review, bias_review, post_mitigation=True),
                 }
             )
+
+            # Re-check the condition for the next loop iteration
+            mitigation_triggered = bias_review.get("has_bias") or not content_review.get("level_alignment", True)
+
 
         result = {
             "connections": connections,
@@ -206,7 +255,7 @@ class Orchestrator:
             "progress": timeline,
         }
 
-        if mitigation_triggered:
+        if retry_count > 0:
             result["mitigated"] = True
             result["mitigation_guidance"] = mitigation_guidance
 
