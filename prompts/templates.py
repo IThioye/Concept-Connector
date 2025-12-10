@@ -51,7 +51,7 @@ You MUST respond with valid JSON using the following schema (EXAMPLE, not a temp
 Rules:
 - Keep language aligned with the learner profile (knowledge level, education system, prior knowledge ratings).
 - The explanation must use Markdown structure (headings, bold key terms, lists) so it renders cleanly.
-- Provide 2–3 analogies as short strings that could appear in a bullet list.
+- Provide 2-3 analogies as short strings that could appear in a bullet list.
 - If you do not have enough information, still return valid JSON with reasonable defaults.
 """
 
@@ -73,7 +73,7 @@ Additional guidance from prior feedback/reviewers: {guidance}
 Output requirements:
 1. Return ONLY valid JSON (no backticks, no commentary).
 2. "explanation_markdown" should contain a clear, step-by-step Markdown explanation (overview + bridge steps + tailored example).
-3. "analogies" must be an array with 2–3 concise analogy strings that reinforce the relationship for this learner.
+3. "analogies" must be an array with 2-3 concise analogy strings that reinforce the relationship for this learner.
 """
 
 

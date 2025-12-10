@@ -33,18 +33,34 @@ A local multi-agent AI system that discovers and explains connections between co
 
 ```mermaid
 flowchart TD
-    A[Learner submits concepts + level] --> B[Orchestrator retrieves profile & feedback]
-    B --> C[Feedback Adapter distills guidance]
-    C --> D[Connection Finder drafts cross-disciplinary links]
-    D --> E[Explanation Builder crafts walkthrough + analogies]
-    E --> F[Bias Monitor performs qualitative check]
-    F --> G[Fairness Auditor computes diversity metrics]
-    G --> H[Content Reviewer validates level alignment]
-    H --> I{Issues detected?}
-    I -->|Yes| J[Mitigation loop: targeted re-prompts with guidance]
-    J --> B
-    I -->|No| K[Results packaged and persisted]
-    K --> L[Frontend renders graph, narrative, metrics]
+    subgraph Initialization & Connection
+        A[Learner submits concepts + level] --> B(Orchestrator retrieves profile & history)
+        B --> C[Feedback Adapter distills guidance]
+        C --> D[Connection Finder drafts cross-disciplinary links]
+        D --> E[Explanation Builder crafts walkthrough + analogies]
+    end
+
+    subgraph Initial Review (Parallel Execution)
+        E --> F{Bias Monitor (Qualitative Check)}
+        E --> G{Content Reviewer (Level Alignment)}
+        E --> H{Fairness Auditor (Compute Diversity Metrics)}
+    end
+
+    I{F, G, H Complete: Issues Detected?} -->|No (Aligned & No Bias)| K[Results Packaged and Persisted]
+
+    I -->|Yes (Misaligned or Biased)| J(Mitigation Loop: Compose Guidance & Check Retries)
+    J -->|Guidance| E
+
+    subgraph Mitigation Check
+        J --> L{Max Retries Exceeded?}
+        L -->|Yes| K
+        L -->|No| E
+    end
+
+    K --> M[Frontend renders graph, narrative, metrics]
+
+classDef parallel fill:#bfe,stroke:#333
+class F,G,H parallel
 ```
 
 1. **Context gathering** – The orchestrator loads learner profile traits, prior interactions, and the latest feedback to seed downstream prompts.
