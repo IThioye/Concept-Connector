@@ -33,34 +33,34 @@ A local multi-agent AI system that discovers and explains connections between co
 
 ```mermaid
 flowchart TD
-    subgraph Initialization_Connection
-        A[Learner submits concepts + level] --> B(Orchestrator retrieves profile and history)
-        B --> C[Feedback Adapter distills guidance]
-        C --> D[Connection Finder drafts cross-disciplinary links]
-        D --> E[Explanation Builder crafts walkthrough and analogies]
+    A[Learner submits concepts + level] --> B[Orchestrator retrieves profile and history]
+    B --> C[Feedback Adapter distills guidance]
+    C --> D[Connection Finder drafts cross-disciplinary links]
+    D --> E[Explanation Builder crafts walkthrough and analogies]
+    
+    E --> F[Parallel Review Stage]
+    
+    subgraph F[" "]
+        direction LR
+        G{Bias Monitor<br/>qualitative check}
+        H{Content Reviewer<br/>level alignment}
     end
-    subgraph Initial_Review_Parallel
-        E --> F{Bias Monitor qualitative check}
-        E --> G{Content Reviewer level alignment}
-        E --> H{Fairness Auditor diversity metrics}
-        F --> I{All checks complete, issues detected?}
-        G --> I
-        H --> I
-    end
-    I -->|No - aligned and no bias| K[Results packaged and persisted]
-    I -->|Yes - misaligned or biased| J(Mitigation loop compose guidance and check retries)
-    J -->|Guidance| E
-    subgraph Mitigation_Check
-        J --> L{Max retries exceeded?}
-        L -->|Yes| K
-        L -->|No| E
-    end
-    K --> M[Frontend renders graph, narrative, metrics]
-    style F fill:#000,stroke:#333,stroke-width:2px,color:#fff
+    
+    F --> I[Fairness Auditor computes diversity metrics]
+    I --> J{Issues detected?}
+    
+    J -->|No - aligned and no bias| M[Results packaged and persisted]
+    J -->|Yes - misaligned or biased| K{Max retries<br/>exceeded?}
+    
+    K -->|Yes| M
+    K -->|No| L[Compose mitigation guidance]
+    L -->|Reuse connections<br/>Regenerate narrative| E
+    
+    M --> N[Frontend renders graph, narrative, metrics]
+    
     style G fill:#000,stroke:#333,stroke-width:2px,color:#fff
     style H fill:#000,stroke:#333,stroke-width:2px,color:#fff
-
-
+    style I fill:#000,stroke:#333,stroke-width:2px,color:#fff
 ```
 
 1. **Context gathering** – The orchestrator loads learner profile traits, prior interactions, and the latest feedback to seed downstream prompts.
