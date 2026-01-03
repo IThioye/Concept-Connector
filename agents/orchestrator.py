@@ -3,14 +3,12 @@ import copy
 import time
 from collections import OrderedDict, deque
 from typing import Any, Dict, Optional, Tuple
-from datetime import datetime
 from enum import Enum
 
 from agents.connection_finder import ConnectionFinder
 from agents.explanation_builder import ExplanationBuilder
 from agents.bias_monitor import BiasMonitor
 from agents.content_reviewer import ContentReviewer
-from agents.fairness_auditor import FairnessAuditor
 from agents.feedback_adapter import FeedbackAdapter
 
 
@@ -19,63 +17,6 @@ class RetryStrategy(Enum):
     EMPHASIS = "emphasis"           # First retry: emphasize issues strongly
     SIMPLIFICATION = "simplification"  # Second retry: simplify language
     RESTRUCTURE = "restructure"     # Third retry: complete restructure
-
-
-class MetricsCollector:
-    """Collect operational metrics for monitoring and optimization."""
-    
-    def __init__(self):
-        self.retry_counts = []
-        self.stage_durations = {}
-        self.cache_hits = 0
-        self.cache_misses = 0
-        self.mitigation_success_rate = []
-        self.agent_failures = {
-            'connection_finder': 0,
-            'explanation_builder': 0,
-            'bias_monitor': 0,
-            'content_reviewer': 0
-        }
-    
-    def record_retry(self, count: int, succeeded: bool):
-        """Record a retry attempt."""
-        self.retry_counts.append(count)
-        self.mitigation_success_rate.append(1 if succeeded else 0)
-    
-    def record_cache_hit(self):
-        self.cache_hits += 1
-    
-    def record_cache_miss(self):
-        self.cache_misses += 1
-    
-    def record_stage_duration(self, stage: str, duration: float):
-        if stage not in self.stage_durations:
-            self.stage_durations[stage] = []
-        self.stage_durations[stage].append(duration)
-    
-    def record_agent_failure(self, agent_name: str):
-        if agent_name in self.agent_failures:
-            self.agent_failures[agent_name] += 1
-    
-    def get_summary(self) -> Dict[str, Any]:
-        """Get metrics summary."""
-        return {
-            'cache_hit_rate': round(
-                self.cache_hits / (self.cache_hits + self.cache_misses), 2
-            ) if (self.cache_hits + self.cache_misses) > 0 else 0,
-            'avg_retries': round(
-                sum(self.retry_counts) / len(self.retry_counts), 2
-            ) if self.retry_counts else 0,
-            'mitigation_success_rate': round(
-                sum(self.mitigation_success_rate) / len(self.mitigation_success_rate), 2
-            ) if self.mitigation_success_rate else 0,
-            'avg_stage_durations': {
-                stage: round(sum(durations) / len(durations), 2)
-                for stage, durations in self.stage_durations.items()
-            },
-            'agent_failures': self.agent_failures.copy()
-        }
-
 
 class RateLimiter:
     """Simple rate limiter for API calls."""
@@ -102,7 +43,6 @@ class RateLimiter:
         
         self.requests.append(now)
 
-
 class _LRUCache:
     """Simple in-memory LRU cache for expensive LLM calls."""
 
@@ -128,19 +68,15 @@ class Orchestrator:
     
     MAX_RETRIES = 2  # Increased from 1 to allow 3 total attempts
 
-    def __init__(self, memory, profiles, cache_size: int = 32, enable_metrics: bool = True):
+    def __init__(self, memory, profiles, cache_size: int = 32):
         self.memory = memory
         self.profiles = profiles
         self.connection_finder = ConnectionFinder()
         self.explainer = ExplanationBuilder()
         self.bias = BiasMonitor()
         self.reviewer = ContentReviewer()
-        self.fairness = FairnessAuditor()
         self.feedback = FeedbackAdapter()
         self._cache = _LRUCache(maxsize=cache_size)
-        
-        # New additions
-        self.metrics = MetricsCollector() if enable_metrics else None
         self.rate_limiter = RateLimiter(max_requests=10, time_window=60)
 
     async def prepare_context(self, concept_a, concept_b, level, session_id=None, profile_overrides=None):
@@ -242,10 +178,7 @@ class Orchestrator:
             analogies = narrative.get("analogies", [])
             
             # CRITICAL: Validate explanations
-            if not explanations or not str(explanations).strip():
-                if self.metrics:
-                    self.metrics.record_agent_failure('explanation_builder')
-                
+            if not explanations or not str(explanations).strip():                
                 explanations = (
                     f"The connection between {concept_a} and {concept_b} involves shared principles "
                     f"that bridge these concepts through their underlying mechanisms."
@@ -254,9 +187,7 @@ class Orchestrator:
             return explanations, analogies
             
         except Exception as e:
-            if self.metrics:
-                self.metrics.record_agent_failure('explanation_builder')
-            
+           
             # Fallback explanation
             return (
                 f"Unable to generate detailed explanation at this time. "
@@ -271,14 +202,9 @@ class Orchestrator:
         # Check cache
         cached = self._cache.get(cache_key)
         if cached:
-            if self.metrics:
-                self.metrics.record_cache_hit()
             await asyncio.to_thread(self.memory.save_interaction, session_id, concept_a, concept_b, cached)
             return cached
         
-        if self.metrics:
-            self.metrics.record_cache_miss()
-
         timeline = []
 
         # Context preparation
@@ -290,9 +216,7 @@ class Orchestrator:
             "duration": round(duration, 3),
             "detail": self._summarise_profile(ctx.get("profile"), level),
         })
-        if self.metrics:
-            self.metrics.record_stage_duration('context', duration)
-        
+       
         guidance = ctx.get("feedback_guidance", "")
         
         # Connection finding
@@ -305,8 +229,6 @@ class Orchestrator:
             "duration": round(duration, 3),
             "detail": self._summarise_connection(connections, concept_a, concept_b),
         })
-        if self.metrics:
-            self.metrics.record_stage_duration('connection', duration)
 
         # Initial narrative generation
         profile = ctx.get("profile") or {}
@@ -320,8 +242,6 @@ class Orchestrator:
             "duration": round(duration, 3),
             "detail": self._summarise_narrative(len(analogies)),
         })
-        if self.metrics:
-            self.metrics.record_stage_duration('narrative', duration)
 
         bundle = {
             'connections': connections,
@@ -342,15 +262,12 @@ class Orchestrator:
         
         bias_review, content_review = await asyncio.gather(bias_review_task, content_review_task)
         
-        fairness_metrics = self.fairness.evaluate(connections or {}, explanations, analogies)
         duration = time.perf_counter() - start
         timeline.append({
             "stage": "review",
             "duration": round(duration, 3),
             "detail": self._summarise_review(content_review, bias_review),
         })
-        if self.metrics:
-            self.metrics.record_stage_duration('review', duration)
 
         # Mitigation loop
         mitigation_triggered = bias_review.get("has_bias") or not content_review.get("level_alignment", True)
@@ -364,8 +281,6 @@ class Orchestrator:
                     "duration": 0.0,
                     "detail": f"Mitigation aborted after {self.MAX_RETRIES} retries. Content remains unaligned or biased.",
                 })
-                if self.metrics:
-                    self.metrics.record_retry(retry_count, False)
                 break
             
             retry_count += 1
@@ -405,7 +320,6 @@ class Orchestrator:
             )
             
             bias_review, content_review = await asyncio.gather(bias_review_task, content_review_task)
-            fairness_metrics = self.fairness.evaluate(connections or {}, explanations, analogies)
             duration = time.perf_counter() - start
             timeline.append({
                 "stage": "review",
@@ -415,10 +329,7 @@ class Orchestrator:
 
             mitigation_triggered = bias_review.get("has_bias") or not content_review.get("level_alignment", True)
             
-            # If we've succeeded, record it
             if not mitigation_triggered:
-                if self.metrics:
-                    self.metrics.record_retry(retry_count, True)
                 break
 
         result = {
@@ -428,7 +339,6 @@ class Orchestrator:
             "bias_review": bias_review.get("raw", []),
             "bias_flag": bool(bias_review.get("has_bias")),
             "content_review": content_review,
-            "fairness": fairness_metrics,
             "feedback_guidance": guidance,
             "progress": timeline,
         }
@@ -452,12 +362,6 @@ class Orchestrator:
                 profile_overrides=profile_overrides,
             )
         )
-
-    def get_metrics_summary(self) -> Dict[str, Any]:
-        """Get operational metrics summary."""
-        if not self.metrics:
-            return {}
-        return self.metrics.get_summary()
 
     @staticmethod
     def _summarise_profile(profile: Optional[Dict[str, Any]], level: Any) -> str:

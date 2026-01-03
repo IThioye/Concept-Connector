@@ -5,7 +5,7 @@ class FeedbackAdapter:
     """Transform stored learner feedback into lightweight guidance strings."""
 
     def summarise(self, feedback_rows: List[dict], default_level: str) -> str:
-        if not feedback_rows:
+        if not feedback_rows or len(feedback_rows) == 0:
             return "Focus on clarity and discipline balance appropriate for a {level} learner.".format(level=default_level)
 
         ratings = [row.get("rating") for row in feedback_rows if isinstance(row.get("rating"), (int, float))]
