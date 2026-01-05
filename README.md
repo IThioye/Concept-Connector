@@ -199,6 +199,7 @@ textstat
 
 ## 🧩 Limitations & Future Work
 
+* Model choice matters ! I currently use gemma3:4b but a better model might provide better answers.
 * Sequential agent calls can still be optimized for latency despite async orchestration.
 * Bias mitigation performs a single corrective pass; additional iterations or human review may be desirable for high-stakes use.
 * Feedback adaptation is session-scoped and does not yet support multi-user personalization with authentication.
