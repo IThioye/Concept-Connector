@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 app = Flask(__name__)
 mem = MemoryService(db_path="database/app.db")
 profiles = ProfileService(db_path="database/app.db")
-orchestrator = Orchestrator(memory=mem, profiles=profiles, enable_metrics=True)
+orchestrator = Orchestrator(memory=mem, profiles=profiles)
 
 
 # Existing routes...
